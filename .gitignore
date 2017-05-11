@@ -8,3 +8,4 @@
 *.model
 asset/*
 MNIST_data
+log
