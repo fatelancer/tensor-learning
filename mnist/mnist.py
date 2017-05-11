@@ -41,7 +41,7 @@ NUM_CLASSES = 10
 IMAGE_SIZE = 28
 IMAGE_PIXELS = IMAGE_SIZE * IMAGE_SIZE
 
-
+# 定义了正向的网络拓扑结构
 def inference(images, hidden1_units, hidden2_units):
   """Build the MNIST model up to where it may be used for inference.
 
@@ -61,6 +61,7 @@ def inference(images, hidden1_units, hidden2_units):
         name='weights')
     biases = tf.Variable(tf.zeros([hidden1_units]),
                          name='biases')
+    # relu操作对于矩阵中的每个元素进行计算, 所以hidden1的长度和biases一样.
     hidden1 = tf.nn.relu(tf.matmul(images, weights) + biases)
   # Hidden 2
   with tf.name_scope('hidden2'):
@@ -80,6 +81,7 @@ def inference(images, hidden1_units, hidden2_units):
     biases = tf.Variable(tf.zeros([NUM_CLASSES]),
                          name='biases')
     logits = tf.matmul(hidden2, weights) + biases
+  # 注意这里的返回值，返回了最后一层的一个Tensor, 理解为什么这样做就能把图的信息都包含进来了?
   return logits
 
 
@@ -94,6 +96,8 @@ def loss(logits, labels):
     loss: Loss tensor of type float.
   """
   labels = tf.to_int64(labels)
+  # 一开始的例子中是自己定义了-tf.reduce_sum(y_*tf.log(y)) 这个Op作为反馈
+  # cross_entropy: 交叉熵
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='xentropy')
   return tf.reduce_mean(cross_entropy, name='xentropy_mean')
@@ -121,6 +125,7 @@ def training(loss, learning_rate):
   # Create the gradient descent optimizer with the given learning rate.
   optimizer = tf.train.GradientDescentOptimizer(learning_rate)
   # Create a variable to track the global step.
+  # 这个变量能干啥? 并不太清楚...
   global_step = tf.Variable(0, name='global_step', trainable=False)
   # Use the optimizer to apply the gradients that minimize the loss
   # (and also increment the global step counter) as a single training step.

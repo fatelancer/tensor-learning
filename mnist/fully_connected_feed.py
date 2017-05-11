@@ -28,12 +28,13 @@ from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
 from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow.examples.tutorials.mnist import mnist
+from . import mnist
 
 # Basic model parameters as external flags.
+# FLAGS.input_data_dir = 'MNIST_data'
 FLAGS = None
 
-
+# DONE.
 def placeholder_inputs(batch_size):
   """Generate placeholder variables to represent the input tensors.
 
@@ -50,12 +51,13 @@ def placeholder_inputs(batch_size):
   # Note that the shapes of the placeholders match the shapes of the full
   # image and label tensors, except the first dimension is now batch_size
   # rather than the full size of the train or test data sets.
+  # 后期训练的模型是一块一块进行的(batch), 预先定义好的batch_size会贯穿整个训练过程.
   images_placeholder = tf.placeholder(tf.float32, shape=(batch_size,
                                                          mnist.IMAGE_PIXELS))
   labels_placeholder = tf.placeholder(tf.int32, shape=(batch_size))
   return images_placeholder, labels_placeholder
 
-
+# DONE
 def fill_feed_dict(data_set, images_pl, labels_pl):
   """Fills the feed_dict for training the given step.
 
@@ -75,6 +77,7 @@ def fill_feed_dict(data_set, images_pl, labels_pl):
   """
   # Create the feed_dict for the placeholders filled with the next
   # `batch size` examples.
+  # feed_dict填充占位符, key=占位符, value=值.
   images_feed, labels_feed = data_set.next_batch(FLAGS.batch_size,
                                                  FLAGS.fake_data)
   feed_dict = {
@@ -83,7 +86,7 @@ def fill_feed_dict(data_set, images_pl, labels_pl):
   }
   return feed_dict
 
-
+#
 def do_eval(sess,
             eval_correct,
             images_placeholder,
@@ -100,6 +103,7 @@ def do_eval(sess,
       input_data.read_data_sets().
   """
   # And run one epoch of eval.
+  # 对所有的数据训练一次并且评估正确性...
   true_count = 0  # Counts the number of correct predictions.
   steps_per_epoch = data_set.num_examples // FLAGS.batch_size
   num_examples = steps_per_epoch * FLAGS.batch_size
@@ -120,6 +124,7 @@ def run_training():
   data_sets = input_data.read_data_sets(FLAGS.input_data_dir, FLAGS.fake_data)
 
   # Tell TensorFlow that the model will be built into the default Graph.
+  # 使用默认图构建，并且自己指定两个中间隐藏层的节点个数.
   with tf.Graph().as_default():
     # Generate placeholders for the images and labels.
     images_placeholder, labels_placeholder = placeholder_inputs(
@@ -134,9 +139,11 @@ def run_training():
     loss = mnist.loss(logits, labels_placeholder)
 
     # Add to the Graph the Ops that calculate and apply gradients.
+    # 使用梯度下降算法最小化损失函数
     train_op = mnist.training(loss, FLAGS.learning_rate)
 
     # Add the Op to compare the logits to the labels during evaluation.
+    # 评估操作.
     eval_correct = mnist.evaluation(logits, labels_placeholder)
 
     # Build the summary Tensor based on the TF collection of Summaries.
@@ -180,6 +187,8 @@ def run_training():
       duration = time.time() - start_time
 
       # Write the summaries and print an overview fairly often.
+      # TensorBoard 可视化部分
+      '''
       if step % 100 == 0:
         # Print status to stdout.
         print('Step %d: loss = %.2f (%.3f sec)' % (step, loss_value, duration))
@@ -187,6 +196,8 @@ def run_training():
         summary_str = sess.run(summary, feed_dict=feed_dict)
         summary_writer.add_summary(summary_str, step)
         summary_writer.flush()
+      '''
+
 
       # Save a checkpoint and evaluate the model periodically.
       if (step + 1) % 1000 == 0 or (step + 1) == FLAGS.max_steps:

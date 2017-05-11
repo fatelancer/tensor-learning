@@ -7,3 +7,4 @@
 *.idea
 *.model
 asset/*
+MNIST_data
