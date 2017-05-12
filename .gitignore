@@ -9,3 +9,11 @@
 asset/*
 MNIST_data
 log
+models
+video
+input
+output
+style
+*.zip
+*.mat
+
