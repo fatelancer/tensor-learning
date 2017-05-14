@@ -110,7 +110,7 @@ def unfreeze_model():
             output = sess.run(output_node, feed_dict={input_node: im_images})
 
             out_path = os.path.join(output_path, FLAGS.output + '-unfreeze.png')
-            print "Save result in: ", out_path
+            print("Save result in: ", out_path)
             print('------------------------------------')
             print('Finished!')
             

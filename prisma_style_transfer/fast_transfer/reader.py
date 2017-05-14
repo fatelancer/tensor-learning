@@ -47,4 +47,4 @@ def get_batch_images(file_names, format, image_size, batch_size, max_length=True
     # return tf.pack(ims_preprocessed)
 
     images = [ decode_image(img_b, channels=3) for img_b in img_bytes ]
-    return preprocess(tf.pack(images), image_size, max_length, if_batch=True)
+    return preprocess(tf.stack(images), image_size, max_length, if_batch=True)

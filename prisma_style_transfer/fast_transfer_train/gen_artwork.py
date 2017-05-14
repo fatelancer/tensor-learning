@@ -53,8 +53,8 @@ def gen_single():
 
             out_path = os.path.join(output_path, input_name + '-styled.png')
             print('------------------------------------')
-            print "Save result in: ", out_path
-            print "Time for one image:", time.time() - start_time, "sec"
+            print("Save result in: ", out_path)
+            print("Time for one image:", time.time() - start_time, "sec")
             print('Finished!')
             
             misc.imsave(out_path, output[0])
@@ -100,10 +100,10 @@ def gen_from_directory():
             input_node = sess.graph.get_tensor_by_name("input_node:0")
             output_node = sess.graph.get_tensor_by_name("output_node:0")
 
-            print '------------------------------------'
-            print "Total images:", im_nums
-            print "Total Batch:", batch_step
-            print "Start transfer>>>>>>"
+            print('------------------------------------')
+            print("Total images:", im_nums)
+            print("Total Batch:", batch_step)
+            print("Start transfer>>>>>>")
             start_time = time.time()
             while step/FLAGS.batch_size < batch_step:
                 content_ims = sess.run(content_images, feed_dict={imgs_name: ims_path[step:step + FLAGS.batch_size]})
@@ -117,10 +117,10 @@ def gen_from_directory():
                 elapsed_time = time.time() - start_time
                 start_time = time.time()
 
-                print "Time for batch", step/FLAGS.batch_size, "with size =", FLAGS.batch_size, ":", elapsed_time, "sec"
-        print '------------------------------------'
-        print "Save result in: ", output_path
-        print 'Finished!'
+                print("Time for batch", step/FLAGS.batch_size, "with size =", FLAGS.batch_size, ":", elapsed_time, "sec")
+        print('------------------------------------')
+        print("Save result in: ", output_path)
+        print('Finished!')
 
 def main(argv=None):
     """Set cuda visible device"""

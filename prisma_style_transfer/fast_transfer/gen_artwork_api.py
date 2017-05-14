@@ -33,7 +33,7 @@ class TransferNet(object):
         # start_time = time.time()
         with tf.Session(graph=self.graph) as sess:
             content_images = tf.convert_to_tensor(input_image)
-            images = tf.pack([content_images])
+            images = tf.stack([content_images])
 
             input_node = sess.graph.get_tensor_by_name("input_node:0")
             output_node = sess.graph.get_tensor_by_name("output_node:0")
@@ -62,12 +62,12 @@ def main(argv=None):
     # load image
     im = Image.open(FLAGS.content_image).convert('RGB')
     im_n = np.asarray(im)
-    print "Time: get image with Image", time.time() - start_time
+    print("Time: get image with Image", time.time() - start_time)
 
     # create model
     start_time = time.time()
     transfer = TransferNet(FLAGS.model)
-    print "Time: create class", time.time() - start_time
+    print("Time: create class", time.time() - start_time)
 
     # transfer image
     transfer.gen_single(im_n)

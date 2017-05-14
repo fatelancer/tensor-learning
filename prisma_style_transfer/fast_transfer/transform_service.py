@@ -7,7 +7,7 @@ from PIL import Image
 from cStringIO import StringIO
 from glob import glob
 from io import BytesIO
-from gen_artwork_api import TransferNet
+from .gen_artwork_api import TransferNet
 
 app = Flask(__name__)
 transformer_dict = dict()

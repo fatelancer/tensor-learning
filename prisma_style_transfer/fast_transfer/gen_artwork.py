@@ -57,15 +57,15 @@ class TransferNet(object):
             output_node = sess.graph.get_tensor_by_name("output_node:0")
 
             im_images = sess.run(images)
-            print "Time: get image", time.time() - start_time
+            print("Time: get image", time.time() - start_time)
 
             start_time = time.time()
             output = sess.run(output_node, feed_dict={input_node: im_images})
 
             out_path = os.path.join(output_path, input_name + '-styled.png')
             print('------------------------------------')
-            print "Save result in: ", out_path
-            print "Time for one image:", time.time() - start_time, "sec"
+            print("Save result in ", out_path)
+            print("Time for one image:", time.time() - start_time, "sec")
             print('Finished!')
 
             misc.imsave(out_path, output[0])
@@ -129,10 +129,10 @@ def gen_from_directory():
                 elapsed_time = time.time() - start_time
                 start_time = time.time()
 
-                print "Time for batch", step/FLAGS.batch_size, "with size =", FLAGS.batch_size, ":", elapsed_time, "sec"
-        print '------------------------------------'
-        print "Save result in: ", output_path
-        print 'Finished!'
+                print("Time for batch", step/FLAGS.batch_size, "with size =", FLAGS.batch_size, ":", elapsed_time, "sec")
+        print('------------------------------------')
+        print("Save result in: ", output_path)
+        print('Finished!')
 
 
 def main(argv=None):
@@ -146,13 +146,13 @@ def main(argv=None):
     # create model
     start_time = time.time()
     transfer = TransferNet(FLAGS.model)
-    print "Time: create class", time.time() - start_time
+    print("Time: create class", time.time() - start_time)
 
     start_time = time.time()
     # load image
     im = Image.open(FLAGS.content_image).convert('RGB')
     im_n = np.asarray(im)
-    print "Time: get image with Image", time.time() - start_time
+    print("Time: get image with Image", time.time() - start_time)
 
     # transfer image
     transfer.gen_single(im_n)

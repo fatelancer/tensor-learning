@@ -7,9 +7,9 @@ from scipy import misc
 import os
 import time
 import tensorflow as tf
-import vgg
-import model
-import reader
+from . import vgg
+from . import model
+from . import reader
 
 # special tag
 tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for model name")
@@ -194,7 +194,7 @@ def gen_single():
         saver = tf.train.Saver()
         saver.restore(sess, file_)
         
-        print "Style image:", FLAGS.content_image
+        print("Style image:", FLAGS.content_image)
         start_time = time.time()
         
         # Run inference 
@@ -204,7 +204,7 @@ def gen_single():
         print('Time: {}'.format(elapsed))
 
         out_path = os.path.join(output_path, FLAGS.output + trained_step + '.png')
-        print "Save result in: ", out_path
+        print("Save result in: ", out_path)
         misc.imsave(out_path, images_t[0])
         
         print('------------------------------------')
@@ -247,7 +247,7 @@ def gen_from_directory():
         saver = tf.train.Saver()
         saver.restore(sess, file_)
         
-        print "Transfer image:"
+        print("Transfer image:")
         start_time = time.time()
         
         # Run inference
@@ -257,7 +257,7 @@ def gen_from_directory():
             elif ims[i].endswith(("jpeg","jpg","JPEG","JPG",)):
                 format_ = "jpg"
             else:
-                print "---Unsupported image format:", ims[i]
+                print("---Unsupported image format:", ims[i])
                 continue
 
             images_t = sess.run(output_format, feed_dict={im_name: FLAGS.content + ims[i],
@@ -270,7 +270,7 @@ def gen_from_directory():
             images_name = ims[i][:format_index]
             out_path = os.path.join(output_path, FLAGS.output + "-" 
                             + images_name + trained_step + '.png')
-            print "Save result in: ", out_path
+            print("Save result in: ", out_path)
             misc.imsave(out_path, images_t[0], format="png")
         
         print('------------------------------------')
@@ -311,7 +311,7 @@ def gen():
 
                 for raw_image in images_t:
                     i += 1
-                    print "Save result in: ", "output/"+FLAGS.output+'-{0:04d}.jpg'.format(i)
+                    print("Save result in: ", "output/"+FLAGS.output+'-{0:04d}.jpg'.format(i))
                     misc.imsave("output/" + FLAGS.output + '-{0:04d}.jpg'.format(i), raw_image)
 
         except tf.errors.OutOfRangeError:
@@ -420,7 +420,7 @@ def train(net_type):
                 
                     # Record summaries
                     train_writer.add_summary(summary, step)
-                    print "# step, loss, elapsed time = ", step-1, loss_t, elapsed_time * 20
+                    print("# step, loss, elapsed time = ", step-1, loss_t, elapsed_time * 20)
 
                 else:
                     _, loss_t, step = sess.run([train_op, loss, global_step])
@@ -442,7 +442,7 @@ def train(net_type):
 
         finally:
             print('------------------------------------')
-            print "Total time for", FLAGS.epoch, "epoch:", total_time
+            print("Total time for", FLAGS.epoch, "epoch:", total_time)
             coord.request_stop()
 
         coord.join(threads)
@@ -464,16 +464,16 @@ def main(argv=None):
         elif FLAGS.content_image:
             gen_single()
         else:
-            print "Please input content images path with arg: "
-            print "\t\t--content content_images_path OR:"
-            print "\t\t--content_image content_images"
+            print("Please input content images path with arg: ")
+            print("\t\t--content content_images_path OR:")
+            print("\t\t--content_image content_images")
     elif FLAGS.mode == "train":
         if FLAGS.vgg_path == "vgg19_36.mat":
             net_type = "vgg19"
         elif FLAGS.vgg_path == "vgg16_36.mat":
             net_type = "vgg16"
         else:
-            print "Please specify valid vgg net model path."
+            print("Please specify valid vgg net model path.")
             return
             
         train(net_type)

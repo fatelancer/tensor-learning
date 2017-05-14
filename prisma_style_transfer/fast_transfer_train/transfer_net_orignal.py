@@ -2,9 +2,9 @@ from scipy import misc
 import os
 import time
 import tensorflow as tf
-import vgg
-import model
-import reader
+from . import vgg
+from . import model
+from . import reader
 
 tf.app.flags.DEFINE_integer("CONTENT_WEIGHT", 5e0, "Weight for content features loss")
 tf.app.flags.DEFINE_integer("STYLE_WEIGHT", 1e2, "Weight for style features loss")
