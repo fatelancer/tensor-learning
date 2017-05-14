@@ -1,0 +1,26 @@
+##Transfer video
+1. Requirement
+    1) Tensorflow(test on v0.8.0)
+        Easiest way to install tensorflow:
+            sudo docker pull gcr.io/tensorflow/tensorflow:0.8.0-gpu
+        Note: you should install docker first.
+    2) ffmepg
+2. Usage:
+    1) Generate directly from video:
+        ./transfer_video.sh -m feathers.model -v video/live4622-cut.mp4 -b 8
+        Args:
+            -m model name
+            -v video name
+            -b batch size, optional, default is 4, set it depends on your gpu mem, larger faster.
+            -s output images size, optional, default is 512
+        Test on GTX Titan X: 
+            About 2.01 sec for batch_size 20, image_size 512
+    2) How to use gen_artwork.py
+        1> Generate single image 
+            python gen_artwork.py --model feathers.model --content_images input/girl.png 
+            Args:
+                --batch_size is optional
+                --image_size is optional
+                --gpu is optional 
+        2> Generate from video frames
+            python gen_artwork.py --model feathers.model --content video/live4622-cut
