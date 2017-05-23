@@ -34,7 +34,7 @@ def get_image(path, image_size, max_length=True, channels=3):
     img_bytes = tf.read_file(path)
     image_ = tf.image.decode_png(img_bytes, channels=channels) if if_png \
         else tf.image.decode_jpeg(img_bytes, channels=channels)
-
+    
     return preprocess(image_, image_size, max_length)
 
 
