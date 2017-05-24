@@ -7,9 +7,9 @@ from scipy import misc
 import os
 import time
 import tensorflow as tf
-from . import vgg
-from . import model
-from . import reader
+import vgg
+import model
+import reader
 
 # special tag
 tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for model name")
@@ -87,13 +87,17 @@ def total_variation_loss(layer):
 
 
 def gram(layer):
-    """ Get style with gram matrix. """
+    """ Get style with gram matrix.
+    layer with shape(batch, height, weight, channels) of activations.
+
+
+    """
     shape = tf.shape(layer)
     num_images = shape[0]
     num_filters = shape[3]
     size = tf.size(layer)
     filters = tf.reshape(layer, tf.stack([num_images, -1, num_filters]))
-    grams = tf.batch_matmul(filters, filters, adj_x=True) / tf.to_float(size / FLAGS.batch_size)
+    grams = tf.matmul(tf.matrix_transpose(filters), filters) / tf.to_float(size / FLAGS.batch_size)
 
     return grams
 
@@ -106,6 +110,7 @@ def get_style_features(style_paths, style_layers, net_type):
         features = []
         for layer in style_layers:
             features.append(gram(net[layer]))
+
 
         with tf.Session() as sess:
             return sess.run(features)
@@ -136,27 +141,36 @@ def log_train_configs(train_start, model_name, summ_path):
 
 
 def perceptual_loss(net_type):
-    """Compute perceptual loss of content and style"""
+    """Compute perceptual loss of content and style
+
+    Return:
+        generated 前向生成网络
+        images 输入图片(batch based)
+        loss 各种loss.
+    """
     # Set style image
     style_paths = FLAGS.style_images.split(',')
     # Set style layers and content layers in vgg net
     style_layers = FLAGS.style_layers.split(',')
     content_layers = FLAGS.content_layers.split(',')
-    # Get style feature
+    # Get style feature, pre calculated and save it in memory
     style_features_t = get_style_features(style_paths, style_layers, net_type)
 
     # Read images from dataset
     images = reader.image(FLAGS.batch_size, FLAGS.image_size, FLAGS.train_images_path, epochs=FLAGS.epoch)
+
     # Transfer images
-    generated = model.net(images / 255.)
+    # 为什么要换成0-1编码?
+    # 这里和里面的处理对应起来, 虽然这么写很丑， 也容易忘
+    generated = model.net(images / 127.5)
 
     # Process generated and original images with vgg
-    net, _ = vgg.net(FLAGS.vgg_path, tf.concat(0, [generated, images]), net_type)
+    net, _ = vgg.net(FLAGS.vgg_path, tf.concat([generated, images], 0), net_type)
 
     # Get content loss
     content_loss = 0
     for layer in content_layers:
-        gen_features, images_features = tf.split(0, 2, net[layer])
+        gen_features, images_features = tf.split(net[layer], 2, 0)
         size = tf.size(gen_features)
         content_loss += tf.nn.l2_loss(gen_features - images_features) / tf.to_float(size)
     content_loss /= len(content_layers)
@@ -164,7 +178,7 @@ def perceptual_loss(net_type):
     # Get Style loss
     style_loss = 0
     for style_gram, layer in zip(style_features_t, style_layers):
-        gen_features, _ = tf.split(0, 2, net[layer])
+        gen_features, _ = tf.split(net[layer], 2, 0)
         size = tf.size(gen_features)
         # Calculate style loss for each style image
         for style_image in style_gram:
@@ -180,6 +194,7 @@ def perceptual_loss(net_type):
 
 def gen_single():
     """ Transfer an image. """
+
     content_images = reader.get_image(FLAGS.content_image, FLAGS.image_size)
     images = tf.stack([content_images])
     generated_images = model.net(images / 255., if_train=False)
@@ -290,7 +305,7 @@ def gen_from_directory():
         print('------------------------------------')
         print('Finished!')
 
-
+# duplicated with above function
 def gen():
     """ transfer images from a directory. """
     content_images = reader.image(
@@ -363,28 +378,28 @@ def train(net_type):
     # train_op = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global_step=global_step)
 
     # Add summary
-    content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
-    style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
-    tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
-    loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
+    ### content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
+    ### style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
+    ### tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
+    ### loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
-    merged = tf.merge_summary(content_loss_s + style_loss_s + tv_loss_s + loss_s)
+    ### merged = tf.merge_summary(content_loss_s + style_loss_s + tv_loss_s + loss_s)
 
-    if FLAGS.batch_size <= 4:
-        output_images = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
+    ### if FLAGS.batch_size <= 4:
+    ###    output_images = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
         # output_images = tf.saturate_cast(generated + reader.mean_pixel, tf.uint8)
-    else:
-        output_images = tf.saturate_cast(tf.concat(0, [tf.slice(generated, [0, 0, 0, 0], [4, -1, -1, -1]),
-                                                       tf.slice(images, [0, 0, 0, 0], [4, -1, -1, -1])])
-                                         + reader.mean_pixel, tf.uint8)
+    ### else:
+    ###    output_images = tf.saturate_cast(tf.concat(0, [tf.slice(generated, [0, 0, 0, 0], [4, -1, -1, -1]),
+    ###                                                   tf.slice(images, [0, 0, 0, 0], [4, -1, -1, -1])])
+    ###                                     + reader.mean_pixel, tf.uint8)
 
     # output_format = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
     # output_images = tf.saturate_cast(generated + reader.mean_pixel, tf.uint8)
 
     # Add output image summary
-    im_summary = tf.image_summary("output-", output_images, max_images=8)
-    im_merge = tf.merge_summary([im_summary])
+    ### im_summary = tf.image_summary("output-", output_images, max_images=8)
+    ### im_merge = tf.merge_summary([im_summary])
 
     # Make output path
     model_suffix = "_" + FLAGS.special_tag
@@ -393,6 +408,7 @@ def train(net_type):
     model_suffix += "tw" + str(FLAGS.tv_weight) + "_"
     model_suffix += "ss" + str(FLAGS.style_scale) + "_"
     model_suffix += "b" + str(int(FLAGS.batch_size))
+    model_suffix += "_liuyi"
 
     model_path = os.path.join("models", FLAGS.model_name + model_suffix)
     if not os.path.exists(model_path):
@@ -405,7 +421,7 @@ def train(net_type):
         os.makedirs(summ_path)
 
     # Record running configs in log file
-    log_train_configs(train_start, model_name, summ_path)
+    # log_train_configs(train_start, model_name, summ_path)
 
     with tf.Session() as sess:
         saver = tf.train.Saver(tf.all_variables())
@@ -416,8 +432,9 @@ def train(net_type):
         else:
             print('Initialize an new model...')
             sess.run(tf.initialize_all_variables())
+            sess.run(tf.initialize_local_variables())
         
-        train_writer = tf.train.SummaryWriter(summ_path, sess.graph)
+        # train_writer = tf.train.SummaryWriter(summ_path, sess.graph)
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
@@ -426,14 +443,16 @@ def train(net_type):
         step = 1
         try:
             while not coord.should_stop():
+                print("=================== Loop %d Start... ===================" % step)
                 if step % 20 == 0:
-                    summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
+                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
+                    _, loss_t, step = sess.run([train_op, loss, global_step])
                     elapsed_time = time.time() - start_time
                     total_time += elapsed_time
                     start_time = time.time()
                 
                     # Record summaries
-                    train_writer.add_summary(summary, step)
+                    # train_writer.add_summary(summary, step)
                     print("# step, loss, elapsed time = ", step-1, loss_t, elapsed_time * 20)
 
                 else:
@@ -443,8 +462,8 @@ def train(net_type):
                     start_time = time.time()
 
                 if step % 200 == 0:
-                    im_summary = sess.run(im_merge)
-                    train_writer.add_summary(im_summary, step)
+                    # im_summary = sess.run(im_merge)
+                    # train_writer.add_summary(im_summary, step)
                     # Save checkpoint file
                     saver.save(sess, model_name, global_step=step)
 
@@ -472,6 +491,7 @@ def train(net_type):
 def main(argv=None):
     """Set cuda visible device"""
     # os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpu
+
     if FLAGS.mode == "gen":
         if FLAGS.content:
             gen_from_directory()
@@ -492,3 +512,4 @@ def main(argv=None):
             
         train(net_type)
 
+main()

@@ -2,42 +2,45 @@
 Helper module to read and preprocess images.
 """
 import tensorflow as tf
+import numpy as np
 import os
 mean_pixel = [123.68, 116.779, 103.939]  # ImageNet average from VGG ..
 
-
+# 对图片进行　resize 和 normalization 处理.
+# max_length is True 按照最大边为基准进行等比缩放，否则按照最小边进行
 def preprocess(images, image_size, max_length, if_batch=False):
     shape = tf.shape(images)
-    size_t = tf.constant(image_size, tf.float64)
+    size_t = tf.constant(image_size, tf.float32)
     if if_batch:
-        height = tf.cast(shape[1], tf.float64)
-        width = tf.cast(shape[2], tf.float64)
+        height = tf.cast(shape[1], tf.float32)
+        width = tf.cast(shape[2], tf.float32)
     else:
-        height = tf.cast(shape[0], tf.float64)
-        width = tf.cast(shape[1], tf.float64)
+        height = tf.cast(shape[0], tf.float32)
+        width = tf.cast(shape[1], tf.float32)
     cond_op = tf.less(width, height) if max_length else tf.less(height, width)
 
     new_height, new_width = tf.cond(
         cond_op,
-        lambda: (size_t, (width * size_t) / height),  # if max_length and height > width
-        lambda: ((height * size_t) / width, size_t))  # if max_length and height < width
+        lambda: (size_t, (width * size_t) // height),  # if max_length and height > width
+        lambda: ((height * size_t) // width, size_t))  # if max_length and height < width
 
-    resized_image = tf.image.resize_images(images, tf.to_int32(new_height), tf.to_int32(new_width))
+    resized_image = tf.image.resize_images(images, (tf.to_int32(new_height), tf.to_int32(new_width)))
     # make the input between [-127, 127]
     normalised_image = resized_image - mean_pixel
     return normalised_image
 
 
 # max_length: Whether size dictates longest or shortest side. Default longest
+
 def get_image(path, image_size, max_length=True, channels=3):
     if_png = path.lower().endswith('png')
     img_bytes = tf.read_file(path)
     image_ = tf.image.decode_png(img_bytes, channels=channels) if if_png \
         else tf.image.decode_jpeg(img_bytes, channels=channels)
-    
+
     return preprocess(image_, image_size, max_length)
 
-
+# 和上面函数一样的功能, 没啥意思
 def get_image_frame(path, image_format, image_size, max_length=True, channels=3):
     img_bytes = tf.read_file(path)
     cond_op = tf.equal(image_format, "png")
@@ -51,6 +54,7 @@ def get_image_frame(path, image_format, image_size, max_length=True, channels=3)
 
 def get_batch_images(file_names, image_format, image_size, batch_size, max_length=True):
     """get a batch of images, the size of these images should have same size"""
+    # ...?
     files = tf.split(0, batch_size, file_names)
     img_bytes = [tf.read_file(_file[0]) for _file in files]
 
@@ -64,10 +68,10 @@ def get_batch_images(file_names, image_format, image_size, batch_size, max_lengt
     # return tf.pack(ims_preprocessed)
 
     images = [decode_image(img_b, channels=3) for img_b in img_bytes]
-    return preprocess(tf.pack(images), image_size, max_length, if_batch=True)
+    return preprocess(tf.stack(images), image_size, max_length, if_batch=True)
 
-
-def image(n, size, path, epochs=2, shuffle=True, crop=True):
+# 使用官方推荐的 Data Queue 来完成数据流读取.
+def image(n, size, path, epochs=2, shuffle=True, crop=False):
     """Get a batch of images from path for training
     Args:
         n: batch size
@@ -87,11 +91,14 @@ def image(n, size, path, epochs=2, shuffle=True, crop=True):
 
     filename_queue = tf.train.string_input_producer(file_names, num_epochs=epochs, shuffle=shuffle)
     reader = tf.WholeFileReader()
+    # 将所有文件加载为 key-value对， key为文件名， value为文件内容
     _, img_bytes = reader.read(filename_queue)
     img = tf.image.decode_png(img_bytes, channels=3) if png else tf.image.decode_jpeg(img_bytes, channels=3)
 
     processed_image = preprocess(img, size, False)
     if not crop:
+        # 增加维度，类似于tf.stack
+        # 用一张照片n次填充..?
         return tf.train.batch([processed_image], n, dynamic_pad=True)
 
     cropped_image = tf.slice(processed_image, [0, 0, 0], [size, size, 3])
