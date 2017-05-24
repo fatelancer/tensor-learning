@@ -56,9 +56,11 @@ def conv2d_transpose(x, input_filters, output_filters, kernel, strides, padding=
         normalized = batch_norm(convolved, output_filters)
         return normalized
 
-
+# 这个用给 super-resolution的
 def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=True):
     with tf.variable_scope('conv_transpose') as scope:
+
+        # 这两种有什么区别么？ 在没开始训练之前
         height = x.get_shape()[1].value if training else tf.shape(x)[1]
         width = x.get_shape()[2].value if training else tf.shape(x)[2]
 
@@ -83,7 +85,7 @@ def instance_norm(x):
     epsilon = 1e-9
     mean, var = tf.nn.moments(x, [1, 2], keep_dims=True)
 
-    return tf.div(tf.sub(x, mean), tf.sqrt(tf.add(var, epsilon)))
+    return tf.div(tf.subtract(x, mean), tf.sqrt(tf.add(var, epsilon)))
 
 
 def residual(x, filters, kernel, strides):
@@ -124,6 +126,7 @@ def net(image, if_train=True, input_channels=3):
         ### deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
         deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2))
     with tf.variable_scope('conv4'):
+        # Use a scaled tanh to ensure the output image pixels in [0, 255]
         deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="instance"))
 
     y = deconv3 * 127.5
