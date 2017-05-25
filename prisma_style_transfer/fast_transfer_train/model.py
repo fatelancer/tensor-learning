@@ -164,11 +164,11 @@ def net(image, if_train=True, input_channels=3):
     image = tf.pad(image, [[0, 0], [10, 10], [10, 10], [0, 0]], mode='REFLECT')
 
     with tf.variable_scope('conv1'):
-        conv1 = normalize(tf.nn.relu(conv2d(image, input_channels, 32, 9, 1, if_norm=False)), 3, norm_type='instance')
+        conv1 = normalize(tf.nn.relu(conv2d(image, input_channels, 32, 9, 1, if_norm=False)), 32, norm_type='instance')
     with tf.variable_scope('conv2'):
-        conv2 = normalize(tf.nn.relu(conv2d(conv1, 32, 64, 3, 2, if_norm=False)), 3, norm_type='instance')
+        conv2 = normalize(tf.nn.relu(conv2d(conv1, 32, 64, 3, 2, if_norm=False)), 64, norm_type='instance')
     with tf.variable_scope('conv3'):
-        conv3 = normalize(tf.nn.relu(conv2d(conv2, 64, 128, 3, 2, if_norm=False)), 3, norm_type='instance')
+        conv3 = normalize(tf.nn.relu(conv2d(conv2, 64, 128, 3, 2, if_norm=False)), 128, norm_type='instance')
     with tf.variable_scope('res1'):
         res1 = residual(conv3, 128, 3, 1)
     with tf.variable_scope('res2'):
@@ -181,10 +181,10 @@ def net(image, if_train=True, input_channels=3):
         res5 = residual(res4, 128, 3, 1)
     with tf.variable_scope('deconv1'):
         ### deconv1 = tf.nn.relu(resize_conv2d(res5, 128, 64, 3, 2, training=if_train))
-        deconv1 = normalize(tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2, if_norm=False)), 3, norm_type='instance')
+        deconv1 = normalize(tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2, if_norm=False)), 64, norm_type='instance')
     with tf.variable_scope('deconv2'):
         ### deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
-        deconv2 = normalize(tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2)), 3, norm_type='instance')
+        deconv2 = normalize(tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2)), 32, norm_type='instance')
     with tf.variable_scope('conv4'):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
         # [-1, 1]
