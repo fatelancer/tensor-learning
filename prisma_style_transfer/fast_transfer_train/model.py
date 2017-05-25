@@ -114,7 +114,44 @@ def residual(x, filters, kernel, strides):
 
 # 定义前向生成网络
 def net_origin(image, if_train=True, input_channels=3):
-    pass
+    # Add border to reduce border effects
+    # 为了使用 REFLECT 的 填充方式 才加入了 pad
+    image = tf.pad(image, [[0, 0], [10, 10], [10, 10], [0, 0]], mode='REFLECT')
+
+    with tf.variable_scope('conv1'):
+        conv1 = tf.nn.relu(conv2d(image, input_channels, 32, 9, 1))
+    with tf.variable_scope('conv2'):
+        conv2 = tf.nn.relu(conv2d(conv1, 32, 64, 3, 2))
+    with tf.variable_scope('conv3'):
+        conv3 = tf.nn.relu(conv2d(conv2, 64, 128, 3, 2))
+    with tf.variable_scope('res1'):
+        res1 = residual(conv3, 128, 3, 1)
+    with tf.variable_scope('res2'):
+        res2 = residual(res1, 128, 3, 1)
+    with tf.variable_scope('res3'):
+        res3 = residual(res2, 128, 3, 1)
+    with tf.variable_scope('res4'):
+        res4 = residual(res3, 128, 3, 1)
+    with tf.variable_scope('res5'):
+        res5 = residual(res4, 128, 3, 1)
+    with tf.variable_scope('deconv1'):
+        ### deconv1 = tf.nn.relu(resize_conv2d(res5, 128, 64, 3, 2, training=if_train))
+        deconv1 = tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2))
+    with tf.variable_scope('deconv2'):
+        ### deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
+        deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2))
+    with tf.variable_scope('conv4'):
+        # Use a scaled tanh to ensure the output image pixels in [0, 255]
+        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="instance"))
+
+    y = deconv3 * 127.5
+
+    # Remove border effect reducing padding.
+    height = tf.shape(y)[1]
+    width = tf.shape(y)[2]
+    y = tf.slice(y, [0, 10, 10, 0], tf.stack([-1, height - 20, width - 20, -1]))
+
+    return y
 
 
 
