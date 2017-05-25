@@ -22,7 +22,7 @@ tf.app.flags.DEFINE_integer("image_size", 256, "Size of output image")
 #######################################训练参数###########################################################
 # 这里竟然使用relu3的结果, 而且权值的调整和原来的project相差比较大
 tf.app.flags.DEFINE_float("content_weight", 9., "Weight for content features loss")
-tf.app.flags.DEFINE_string("content_layers", "relu3_4", "Which VGG layer to extract content loss from")
+tf.app.flags.DEFINE_string("content_layers", "relu4_2", "Which VGG layer to extract content loss from")
 
 # 只保留了需要用的最小部分
 tf.app.flags.DEFINE_float("tv_weight", 1e-5, "Weight for total variation loss")
@@ -44,7 +44,7 @@ tf.app.flags.DEFINE_string("style_images", "style/starry_night.png", "Styles to 
 tf.app.flags.DEFINE_float("style_scale", 1, "Scale styles. Higher extracts smaller features")
 
 # 因为不太使用 batch Normalization 所以没什么所谓，不过大的batch应该可以加速并行计算
-tf.app.flags.DEFINE_integer("batch_size", 10, "Number of concurrent images to train on")
+tf.app.flags.DEFINE_integer("batch_size", 1, "Number of concurrent images to train on")
 tf.app.flags.DEFINE_string("summary_path", "tensorboard", "Path to store Tensorboard summaries")
 tf.app.flags.DEFINE_integer("epoch", 5, "Epochs for training")
 
@@ -85,7 +85,7 @@ def total_variation_loss(layer):
 
     return tf.nn.l2_loss(x) / tf.to_float(tf.size(x)) + tf.nn.l2_loss(y) / tf.to_float(tf.size(y))
 
-
+# Done
 def gram(layer):
     """ Get style with gram matrix.
     layer with shape(batch, height, weight, channels) of activations.
@@ -101,7 +101,7 @@ def gram(layer):
 
     return grams
 
-
+# Done
 def get_style_features(style_paths, style_layers, net_type):
     with tf.Graph().as_default() as g:
         size = int(round(FLAGS.image_size * FLAGS.style_scale))
@@ -115,7 +115,7 @@ def get_style_features(style_paths, style_layers, net_type):
         with tf.Session() as sess:
             return sess.run(features)
 
-
+# Done
 def log_train_configs(train_start, model_name, summ_path):
     with open(model_name + "_config.log", "a") as log_f:
         log_f.write("#-----------------------------------\n")
@@ -163,6 +163,8 @@ def perceptual_loss(net_type):
     # 为什么要换成0-1编码?
     # 这里和里面的处理对应起来, 虽然这么写很丑， 也容易忘
     generated = model.net(images / 127.5)
+    # generated = model.net(tf.truncated_normal(images.get_shape(), stddev=0.3))
+
 
     # Process generated and original images with vgg
     net, _ = vgg.net(FLAGS.vgg_path, tf.concat([generated, images], 0), net_type)
@@ -432,7 +434,8 @@ def train(net_type):
         else:
             print('Initialize an new model...')
             sess.run(tf.initialize_all_variables())
-            sess.run(tf.initialize_local_variables())
+
+        sess.run(tf.initialize_local_variables())
         
         # train_writer = tf.train.SummaryWriter(summ_path, sess.graph)
 

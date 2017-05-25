@@ -5,7 +5,7 @@ This file is used to define transfer network architecture.
 import tensorflow as tf
 
 
-def conv2d(x, input_channels, output_channels, kernel, strides, mode='REFLECT', norm="batch"):
+def conv2d(x, input_channels, output_channels, kernel, strides, mode='REFLECT', norm="batch", if_norm=True):
     """
     Define a convolution layer with input x.
     Args:
@@ -30,18 +30,20 @@ def conv2d(x, input_channels, output_channels, kernel, strides, mode='REFLECT', 
         x_padded = tf.pad(x, [[0, 0], [kernel // 2, kernel // 2], [kernel // 2, kernel // 2], [0, 0]], mode=mode)
         convolved = tf.nn.conv2d(x_padded, weight, strides=[1, strides, strides, 1], padding="VALID", name='conv')
 
+        if not if_norm:
+            return convolved
+
         if norm == "batch":
-            normalized = batch_norm(convolved, output_channels)
+            normalized = normalize(convolved, output_channels, norm_type='batch')
             return normalized
-        # = = are you kidding me? 纯粹的使用了 batch norm 呢...
         elif norm == "instance":
-            normalized = batch_norm(convolved, output_channels, norm_shape=(1, 2))
+            normalized = normalize(convolved, output_channels, norm_type='instance')
             return normalized
         else:
             return convolved
 
 
-def conv2d_transpose(x, input_filters, output_filters, kernel, strides, padding='SAME'):
+def conv2d_transpose(x, input_filters, output_filters, kernel, strides, padding='SAME', if_norm=True):
     with tf.variable_scope('conv_transpose') as scope:
         shape = [kernel, kernel, output_filters, input_filters]
         weight = tf.Variable(tf.truncated_normal(shape, stddev=0.1), name='weight')
@@ -53,10 +55,12 @@ def conv2d_transpose(x, input_filters, output_filters, kernel, strides, padding=
         convolved = tf.nn.conv2d_transpose(x, weight, output_shape, strides=[1, strides, strides, 1],
                                            padding=padding, name='conv_transpose')
 
-        normalized = batch_norm(convolved, output_filters)
+        if not if_norm:
+            return convolved
+        normalized = normalize(convolved, output_filters, norm_type='batch')
         return normalized
 
-# 这个用给 super-resolution的
+# 这个用给 super-resolution的,用不到
 def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=True):
     with tf.variable_scope('conv_transpose') as scope:
 
@@ -72,15 +76,26 @@ def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=Tr
         # shape = [kernel, kernel, input_filters, output_filters]
         return conv2d(x_resized, input_filters, output_filters, kernel, strides)
 
+# Input is a 4-D Tensor.
+def normalize(x, size, norm_type='batch'):
+    if norm_type not in ['batch', 'instance', 'adaptive']:
+        raise Exception("NO matching type of normalization!")
 
-def batch_norm(x, size, norm_shape=(0, 1, 2)):
-    batch_mean, batch_var = tf.nn.moments(x, norm_shape, keep_dims=True)
-    beta = tf.Variable(tf.zeros([size]), name='beta')
-    scale = tf.Variable(tf.ones([size]), name='scale')
+    norm_shape = (0,1,2) if norm_type == 'batch' else (1,2)
+
+    mean, var = tf.nn.moments(x, norm_shape, keep_dims=True)
+
+    if norm_type == 'adaptive':
+        ## TODO, No argument, but constant from style image
+        beta = tf.Variable(tf.zeros([size]), name='beta')
+        scale = tf.Variable(tf.ones([size]), name='scale')
+    else:
+        beta = tf.Variable(tf.zeros([size]), name='beta')
+        scale = tf.Variable(tf.ones([size]), name='scale')
     epsilon = 1e-3
-    return tf.nn.batch_normalization(x, batch_mean, batch_var, beta, scale, epsilon, name='batch')
+    return tf.nn.batch_normalization(x, mean, var, beta, scale, epsilon, name='batch')
 
-
+# Duplicated.
 def instance_norm(x):
     epsilon = 1e-9
     mean, var = tf.nn.moments(x, [1, 2], keep_dims=True)
@@ -98,17 +113,25 @@ def residual(x, filters, kernel, strides):
         return residual_
 
 # 定义前向生成网络
+def net_origin(image, if_train=True, input_channels=3):
+    pass
+
+
+
+
+
+# 定义前向网络, 使用 Instance Normalization, 并且放在激活函数的后面.
 def net(image, if_train=True, input_channels=3):
     # Add border to reduce border effects
     # 为了使用 REFLECT 的 填充方式 才加入了 pad
     image = tf.pad(image, [[0, 0], [10, 10], [10, 10], [0, 0]], mode='REFLECT')
 
     with tf.variable_scope('conv1'):
-        conv1 = tf.nn.relu(conv2d(image, input_channels, 32, 9, 1))
+        conv1 = normalize(tf.nn.relu(conv2d(image, input_channels, 32, 9, 1, if_norm=False)), 3, norm_type='instance')
     with tf.variable_scope('conv2'):
-        conv2 = tf.nn.relu(conv2d(conv1, 32, 64, 3, 2))
+        conv2 = normalize(tf.nn.relu(conv2d(conv1, 32, 64, 3, 2, if_norm=False)), 3, norm_type='instance')
     with tf.variable_scope('conv3'):
-        conv3 = tf.nn.relu(conv2d(conv2, 64, 128, 3, 2))
+        conv3 = normalize(tf.nn.relu(conv2d(conv2, 64, 128, 3, 2, if_norm=False)), 3, norm_type='instance')
     with tf.variable_scope('res1'):
         res1 = residual(conv3, 128, 3, 1)
     with tf.variable_scope('res2'):
@@ -121,14 +144,16 @@ def net(image, if_train=True, input_channels=3):
         res5 = residual(res4, 128, 3, 1)
     with tf.variable_scope('deconv1'):
         ### deconv1 = tf.nn.relu(resize_conv2d(res5, 128, 64, 3, 2, training=if_train))
-        deconv1 = tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2))
+        deconv1 = normalize(tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2, if_norm=False)), 3, norm_type='instance')
     with tf.variable_scope('deconv2'):
         ### deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
-        deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2))
+        deconv2 = normalize(tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2)), 3, norm_type='instance')
     with tf.variable_scope('conv4'):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
-        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="instance"))
+        # [-1, 1]
+        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, if_norm=False))
 
+    # y need add reader.norm
     y = deconv3 * 127.5
 
     # Remove border effect reducing padding.
@@ -137,3 +162,7 @@ def net(image, if_train=True, input_channels=3):
     y = tf.slice(y, [0, 10, 10, 0], tf.stack([-1, height - 20, width - 20, -1]))
 
     return y
+
+# 定义Adaptive网络结构
+def AdaIn_net(image, style_image, input_channels=3):
+    pass
