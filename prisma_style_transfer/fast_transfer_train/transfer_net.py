@@ -22,6 +22,7 @@ tf.app.flags.DEFINE_integer("image_size", 256, "Size of output image")
 #######################################训练参数###########################################################
 # 这里竟然使用relu3的结果, 而且权值的调整和原来的project相差比较大
 tf.app.flags.DEFINE_float("content_weight", 9., "Weight for content features loss")
+# 这里原来是用了 relu3-4
 tf.app.flags.DEFINE_string("content_layers", "relu4_2", "Which VGG layer to extract content loss from")
 
 # 只保留了需要用的最小部分
@@ -50,7 +51,7 @@ tf.app.flags.DEFINE_integer("epoch", 5, "Epochs for training")
 
 # 在Batch Normalization的情况下可以调大一点, 但是对于Instance Normalization呢?
 # 在 Loop 11000 我 调整为了 1e-1 之前是 1e-3
-tf.app.flags.DEFINE_float("lr", 1e-1, "learning rate for training")
+tf.app.flags.DEFINE_float("lr", 0.05, "learning rate for training")
 
 # checkpoint相关参数
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
