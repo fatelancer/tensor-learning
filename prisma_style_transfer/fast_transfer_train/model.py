@@ -191,6 +191,8 @@ def net(image, if_train=True, input_channels=3):
         deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, if_norm=False))
 
     # y need add reader.norm
+    # 这里 * 127.5 的原因是前面已经执行了 Normalization把 [0,1] 转为了 0 为中心
+    # 并且后面的输出结果会 加上 mean_pixel, 然后再截取回 [0, 255]
     y = deconv3 * 127.5
 
     # Remove border effect reducing padding.

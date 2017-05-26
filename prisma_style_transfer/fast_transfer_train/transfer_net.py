@@ -49,7 +49,8 @@ tf.app.flags.DEFINE_string("summary_path", "tensorboard", "Path to store Tensorb
 tf.app.flags.DEFINE_integer("epoch", 5, "Epochs for training")
 
 # 在Batch Normalization的情况下可以调大一点, 但是对于Instance Normalization呢?
-tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
+# 在 Loop 11000 我 调整为了 1e-1 之前是 1e-3
+tf.app.flags.DEFINE_float("lr", 1e-1, "learning rate for training")
 
 # checkpoint相关参数
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
@@ -73,6 +74,16 @@ def scalar_variable_summaries(var, name):
         hist_s = tf.histogram_summary('hist-' + name, var)
     return [scalar_s, hist_s]
 
+
+def get_model_suffix():
+    model_suffix = "_" + FLAGS.special_tag
+    model_suffix += "_cw" + str(FLAGS.content_weight) + "_"
+    model_suffix += "sw" + str(FLAGS.style_weight) + "_"
+    model_suffix += "tw" + str(FLAGS.tv_weight) + "_"
+    model_suffix += "ss" + str(FLAGS.style_scale) + "_"
+    model_suffix += "b" + str(int(FLAGS.batch_size))
+    model_suffix += "_liuyi"
+    return model_suffix
 
 def total_variation_loss(layer):
     shape = tf.shape(layer)
@@ -203,18 +214,20 @@ def gen_single():
 
     output_format = tf.saturate_cast(generated_images + reader.mean_pixel, tf.uint8)
 
-    # Ouput path
-    model_p = FLAGS.model
-    model_p = model_p if not model_p.endswith("/") else model_p[:-1]
-    model_p = os.path.split(model_p)
-    output_path = os.path.join("output", model_p[len(model_p)-1])
+    # Output path
+
+    model_path = os.path.join('models', FLAGS.model_name + get_model_suffix())
+    ### model_p = model_p if not model_p.endswith("/") else model_p[:-1]
+    ### model_p = os.path.split(model_p)
+    output_path = os.path.join("output", FLAGS.model_name + get_model_suffix())
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
     with tf.Session() as sess:
-        file_ = tf.train.latest_checkpoint(FLAGS.model)
+        file_ = tf.train.latest_checkpoint(model_path)
         if not file_:
-            print('Could not find trained model in {}'.format(FLAGS.model))
+            print('Could not find trained model in {}'.format(model_path))
             return
         print('Using model from {}'.format(file_))
 
@@ -234,7 +247,7 @@ def gen_single():
         elapsed = time.time() - start_time
         print('Time: {}'.format(elapsed))
 
-        out_path = os.path.join(output_path, FLAGS.output + trained_step + '.png')
+        out_path = os.path.join(output_path, FLAGS.output + trained_step + '-' + str(int(time.time())) + '.jpg')
         print("Save result in: ", out_path)
         misc.imsave(out_path, images_t[0])
         
@@ -380,10 +393,10 @@ def train(net_type):
     # train_op = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global_step=global_step)
 
     # Add summary
-    ### content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
-    ### style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
-    ### tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
-    ### loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
+    content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
+    style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
+    tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
+    loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
     ### merged = tf.merge_summary(content_loss_s + style_loss_s + tv_loss_s + loss_s)
@@ -404,15 +417,11 @@ def train(net_type):
     ### im_merge = tf.merge_summary([im_summary])
 
     # Make output path
-    model_suffix = "_" + FLAGS.special_tag
-    model_suffix += "_cw" + str(FLAGS.content_weight) + "_"
-    model_suffix += "sw" + str(FLAGS.style_weight) + "_"
-    model_suffix += "tw" + str(FLAGS.tv_weight) + "_"
-    model_suffix += "ss" + str(FLAGS.style_scale) + "_"
-    model_suffix += "b" + str(int(FLAGS.batch_size))
-    model_suffix += "_liuyi"
 
+    model_suffix = get_model_suffix()
     model_path = os.path.join("models", FLAGS.model_name + model_suffix)
+
+
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     model_name = os.path.join(model_path, FLAGS.model_name)
@@ -446,29 +455,30 @@ def train(net_type):
         step = 1
         try:
             while not coord.should_stop():
-                print("=================== Loop %d Start... ===================" % step)
-                if step % 20 == 0:
-                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
-                    _, loss_t, step = sess.run([train_op, loss, global_step])
-                    elapsed_time = time.time() - start_time
-                    total_time += elapsed_time
-                    start_time = time.time()
-                
-                    # Record summaries
-                    # train_writer.add_summary(summary, step)
-                    print("# step, loss, elapsed time = ", step-1, loss_t, elapsed_time * 20)
+                    print("=================== Loop %d Start... ===================" % step)
 
-                else:
-                    _, loss_t, step = sess.run([train_op, loss, global_step])
-                    elapsed_time = time.time() - start_time
-                    total_time += elapsed_time
-                    start_time = time.time()
+                    if step % 20 == 0:
+                        ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
+                        _, loss_t, step = sess.run([train_op, loss, global_step])
+                        elapsed_time = time.time() - start_time
+                        total_time += elapsed_time
+                        start_time = time.time()
 
-                if step % 200 == 0:
-                    # im_summary = sess.run(im_merge)
-                    # train_writer.add_summary(im_summary, step)
-                    # Save checkpoint file
-                    saver.save(sess, model_name, global_step=step)
+                        # Record summaries
+                        # train_writer.add_summary(summary, step)
+                        print("# step, loss, elapsed time = ", step-1, loss_t, elapsed_time * 20)
+
+                    else:
+                        _, loss_t, step = sess.run([train_op, loss, global_step])
+                        elapsed_time = time.time() - start_time
+                        total_time += elapsed_time
+                        start_time = time.time()
+
+                    if step % 1000 == 0:
+                        # im_summary = sess.run(im_merge)
+                        # train_writer.add_summary(im_summary, step)
+                        # Save checkpoint file
+                        saver.save(sess, model_name, global_step=step)
 
         except tf.errors.OutOfRangeError:
             print('Finished training -- epoch limit reached!')
