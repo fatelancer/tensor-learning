@@ -16,14 +16,14 @@ tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for mode
 
 # common arguments
 tf.app.flags.DEFINE_string("mode", "train", "training-train or generate-gen")
-tf.app.flags.DEFINE_integer("image_size", 256, "Size of output image")
+tf.app.flags.DEFINE_integer("image_size", 512, "Size of output image")
 # tf.app.flags.DEFINE_string("gpu", "0", "Select which gpu to use, 0 or 1")
 
 #######################################训练参数###########################################################
 # 这里竟然使用relu3的结果, 而且权值的调整和原来的project相差比较大
 tf.app.flags.DEFINE_float("content_weight", 9., "Weight for content features loss")
 # 这里原来是用了 relu3-4
-tf.app.flags.DEFINE_string("content_layers", "relu4_2", "Which VGG layer to extract content loss from")
+tf.app.flags.DEFINE_string("content_layers", "relu3_4", "Which VGG layer to extract content loss from")
 
 # 只保留了需要用的最小部分
 tf.app.flags.DEFINE_float("tv_weight", 1e-5, "Weight for total variation loss")
@@ -51,7 +51,7 @@ tf.app.flags.DEFINE_integer("epoch", 5, "Epochs for training")
 
 # 在Batch Normalization的情况下可以调大一点, 但是对于Instance Normalization呢?
 # 在 Loop 11000 我 调整为了 1e-1 之前是 1e-3
-tf.app.flags.DEFINE_float("lr", 0.05, "learning rate for training")
+tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
 
 # checkpoint相关参数
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
@@ -174,7 +174,7 @@ def perceptual_loss(net_type):
     # Transfer images
     # 为什么要换成0-1编码?
     # 这里和里面的处理对应起来, 虽然这么写很丑， 也容易忘
-    generated = model.net(images / 127.5)
+    generated = model.net(images / 255)
     # generated = model.net(tf.truncated_normal(images.get_shape(), stddev=0.3))
 
 
@@ -210,7 +210,7 @@ def gen_single():
     """ Transfer an image. """
 
     content_images = reader.get_image(FLAGS.content_image, FLAGS.image_size)
-    images = tf.stack([content_images])
+    images = tf.stack([content_images] * 10)
     generated_images = model.net(images / 255., if_train=False)
 
     output_format = tf.saturate_cast(generated_images + reader.mean_pixel, tf.uint8)
@@ -394,10 +394,10 @@ def train(net_type):
     # train_op = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global_step=global_step)
 
     # Add summary
-    content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
-    style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
-    tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
-    loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
+    ### content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
+    ### style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
+    ### tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
+    ### loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
     ### merged = tf.merge_summary(content_loss_s + style_loss_s + tv_loss_s + loss_s)
@@ -475,7 +475,7 @@ def train(net_type):
                         total_time += elapsed_time
                         start_time = time.time()
 
-                    if step % 1000 == 0:
+                    if step % 10000 == 0:
                         # im_summary = sess.run(im_merge)
                         # train_writer.add_summary(im_summary, step)
                         # Save checkpoint file

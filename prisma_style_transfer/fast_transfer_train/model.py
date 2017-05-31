@@ -113,7 +113,7 @@ def residual(x, filters, kernel, strides):
         return residual_
 
 # 定义前向生成网络
-def net_origin(image, if_train=True, input_channels=3):
+def net(image, if_train=True, input_channels=3):
     # Add border to reduce border effects
     # 为了使用 REFLECT 的 填充方式 才加入了 pad
     image = tf.pad(image, [[0, 0], [10, 10], [10, 10], [0, 0]], mode='REFLECT')
@@ -158,7 +158,7 @@ def net_origin(image, if_train=True, input_channels=3):
 
 
 # 定义前向网络, 使用 Instance Normalization, 并且放在激活函数的后面.
-def net(image, if_train=True, input_channels=3):
+def net2(image, if_train=True, input_channels=3):
     # Add border to reduce border effects
     # 为了使用 REFLECT 的 填充方式 才加入了 pad
     image = tf.pad(image, [[0, 0], [10, 10], [10, 10], [0, 0]], mode='REFLECT')
