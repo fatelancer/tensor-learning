@@ -16,17 +16,17 @@ tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for mode
 
 # common arguments
 tf.app.flags.DEFINE_string("mode", "train", "training-train or generate-gen")
-tf.app.flags.DEFINE_integer("image_size", 512, "Size of output image")
+tf.app.flags.DEFINE_integer("image_size", 256, "Size of output image")
 # tf.app.flags.DEFINE_string("gpu", "0", "Select which gpu to use, 0 or 1")
 
 #######################################训练参数###########################################################
 # 这里竟然使用relu3的结果, 而且权值的调整和原来的project相差比较大
-tf.app.flags.DEFINE_float("content_weight", 9., "Weight for content features loss")
+tf.app.flags.DEFINE_float("content_weight", 1., "Weight for content features loss")
 # 这里原来是用了 relu3-4
 tf.app.flags.DEFINE_string("content_layers", "relu3_4", "Which VGG layer to extract content loss from")
 
 # 只保留了需要用的最小部分
-tf.app.flags.DEFINE_float("tv_weight", 1e-5, "Weight for total variation loss")
+tf.app.flags.DEFINE_float("tv_weight", 1, "Weight for total variation loss")
 tf.app.flags.DEFINE_string("vgg_path", "vgg19_36.mat", "Path to vgg model weights")
 
 # tf.app.flags.DEFINE_string("model_path", None, "Path to write trained models")
@@ -210,7 +210,7 @@ def gen_single():
     """ Transfer an image. """
 
     content_images = reader.get_image(FLAGS.content_image, FLAGS.image_size)
-    images = tf.stack([content_images] * 10)
+    images = tf.stack([content_images])
     generated_images = model.net(images / 255., if_train=False)
 
     output_format = tf.saturate_cast(generated_images + reader.mean_pixel, tf.uint8)
@@ -454,43 +454,48 @@ def train(net_type):
         start_time = time.time()
         total_time = 0
         step = 1
-        try:
-            while not coord.should_stop():
-                    print("=================== Loop %d Start... ===================" % step)
 
-                    if step % 20 == 0:
-                        ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
-                        _, loss_t, step = sess.run([train_op, loss, global_step])
-                        elapsed_time = time.time() - start_time
-                        total_time += elapsed_time
-                        start_time = time.time()
+        while not coord.should_stop():
+            try:
+                if step % 20 == 0:
+                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
+                    _, loss_t, step = sess.run([train_op, loss, global_step])
+                    elapsed_time = time.time() - start_time
+                    total_time += elapsed_time
+                    start_time = time.time()
 
-                        # Record summaries
-                        # train_writer.add_summary(summary, step)
-                        print("# step, loss, elapsed time = ", step-1, loss_t, elapsed_time * 20)
+                    # Record summaries
+                    # train_writer.add_summary(summary, step)
 
-                    else:
-                        _, loss_t, step = sess.run([train_op, loss, global_step])
-                        elapsed_time = time.time() - start_time
-                        total_time += elapsed_time
-                        start_time = time.time()
+                    print("# step = %d, loss = %f, elapsed time = %f" % (step-1, loss_t, elapsed_time * 20))
 
-                    if step % 10000 == 0:
-                        # im_summary = sess.run(im_merge)
-                        # train_writer.add_summary(im_summary, step)
-                        # Save checkpoint file
-                        saver.save(sess, model_name, global_step=step)
+                else:
+                    _, loss_t, step = sess.run([train_op, loss, global_step])
+                    elapsed_time = time.time() - start_time
+                    total_time += elapsed_time
+                    start_time = time.time()
 
-        except tf.errors.OutOfRangeError:
-            print('Finished training -- epoch limit reached!')
+                if step % 10000 == 0:
+                    # im_summary = sess.run(im_merge)
+                    # train_writer.add_summary(im_summary, step)
+                    # Save checkpoint file
+                    saver.save(sess, model_name, global_step=step)
 
-        except KeyboardInterrupt:
-            print("Terminated by Keyboard Interrupt")
+            except tf.errors.OutOfRangeError:
+                print('Finished training -- epoch limit reached!')
+                break
 
-        finally:
-            print('------------------------------------')
-            print("Total time for", FLAGS.epoch, "epoch:", total_time)
-            coord.request_stop()
+            except KeyboardInterrupt:
+                print("Terminated by Keyboard Interrupt")
+                break
+
+            except:
+                continue
+
+
+        print('------------------------------------')
+        print("Total time for", FLAGS.epoch, "epoch:", total_time)
+        coord.request_stop()
 
         coord.join(threads)
         
