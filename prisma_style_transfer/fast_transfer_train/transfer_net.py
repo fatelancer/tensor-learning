@@ -407,9 +407,11 @@ def train(net_type):
         total_time = 0
         step = 1
         best_loss = float('inf')
-        print(sess.run(generated).shape)
-        print(sess.run(images).shape)
-        exit(1)
+
+        # print(sess.run(generated).shape)
+        # print(sess.run(images).shape)
+        # exit(1)
+
         while not coord.should_stop():
             try:
                 _, c_loss, s_loss, tv_loss, total_loss, step = sess.run([train_op, content_loss, style_loss, total_v_loss, loss, global_step])
