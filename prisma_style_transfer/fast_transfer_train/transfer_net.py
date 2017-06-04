@@ -56,7 +56,7 @@ tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
 # checkpoint相关参数
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
 
-
+tf.app.flags.DEFINE_integer("record_interval", 100, "the frequency to summary and refresh model recording")
 
 #####################################生成参数######################################################################
 tf.app.flags.DEFINE_string("model", "models/", "Path to read trained models")
@@ -452,6 +452,7 @@ def train(net_type):
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
         start_time = time.time()
+        elapsed_time = 0
         total_time = 0
         step = 1
         best_loss = float('inf')
@@ -460,11 +461,11 @@ def train(net_type):
         while not coord.should_stop():
             try:
                 _, c_loss, s_loss, tv_loss, total_loss, step = sess.run([train_op, content_loss, style_loss, total_v_loss, loss, global_step])
-                elapsed_time = time.time() - start_time
-                total_time += elapsed_time
-                start_time = time.time()
 
-                if step % 100 == 0:
+                if step % FLAGS.record_interval == 0:
+                    elapsed_time = time.time() - start_time
+                    total_time += elapsed_time
+                    start_time = time.time()
                     summary = sess.run(merge_summary)
                     # Record summaries
                     summary_writer.add_summary(summary, step)
@@ -473,7 +474,7 @@ def train(net_type):
                     print("content_loss is %f" % c_loss)
                     print("style_loss is %f" % s_loss)
                     print("tv_loss is %f" % tv_loss)
-                    print("Speed is %f s/loop" % (elapsed_time/20))
+                    print("Speed is %f s/loop" % (elapsed_time/FLAGS.record_interval))
                     print("===============================================")
 
                 if total_loss < best_loss:
