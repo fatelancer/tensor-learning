@@ -376,10 +376,12 @@ def train(net_type):
     # Record training start time
     train_start = time.time()
 
+
+    global_step = tf.Variable(1, name="global_step", trainable=False)
+
     # Perceptual loss
     generated, images, content_loss, style_loss, total_v_loss, loss = perceptual_loss(net_type)
 
-    global_step = tf.Variable(1, name="global_step", trainable=False)
 
     train_op = tf.train.AdamOptimizer(FLAGS.lr).minimize(loss, global_step=global_step)
 
@@ -454,31 +456,33 @@ def train(net_type):
         start_time = time.time()
         total_time = 0
         step = 1
+        best_loss = float('inf')
+
 
         while not coord.should_stop():
             try:
-                if step % 20 == 0:
-                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
-                    _, loss_t, step = sess.run([train_op, loss, global_step])
-                    elapsed_time = time.time() - start_time
-                    total_time += elapsed_time
-                    start_time = time.time()
+                _, c_loss, s_loss, tv_loss, total_loss, step = sess.run([train_op, content_loss, style_loss, total_v_loss, loss, global_step])
+                elapsed_time = time.time() - start_time
+                total_time += elapsed_time
+                start_time = time.time()
 
+                if step % 100 == 0:
+                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
                     # Record summaries
                     # train_writer.add_summary(summary, step)
 
-                    print("# step = %d, loss = %f, elapsed time = %f" % (step-1, loss_t, elapsed_time * 20))
+                    print("===============Step %d ================" % step)
+                    print("content_loss is %f" % c_loss)
+                    print("style_loss is %f" % s_loss)
+                    print("tv_loss is %f" % tv_loss)
+                    print("Speed is %f s/loop" % (elapsed_time/20))
+                    print("===============================================")
 
-                else:
-                    _, loss_t, step = sess.run([train_op, loss, global_step])
-                    elapsed_time = time.time() - start_time
-                    total_time += elapsed_time
-                    start_time = time.time()
-
-                if step % 10000 == 0:
+                if total_loss < best_loss:
                     # im_summary = sess.run(im_merge)
                     # train_writer.add_summary(im_summary, step)
                     # Save checkpoint file
+                    best_loss = total_loss
                     saver.save(sess, model_name, global_step=step)
 
             except tf.errors.OutOfRangeError:
@@ -490,6 +494,7 @@ def train(net_type):
                 break
 
             except:
+                # some unknown error like disk reading error, just ignore it.
                 continue
 
 
