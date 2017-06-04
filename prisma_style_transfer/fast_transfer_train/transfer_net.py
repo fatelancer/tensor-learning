@@ -56,7 +56,7 @@ tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
 # checkpoint相关参数
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
 
-tf.app.flags.DEFINE_integer("record_interval", 100, "the frequency to summary and refresh model recording")
+tf.app.flags.DEFINE_integer("record_interval", 200, "the frequency to summary and refresh model recording")
 
 #####################################生成参数######################################################################
 tf.app.flags.DEFINE_string("model", "models/", "Path to read trained models")
@@ -97,19 +97,7 @@ def total_variation_loss(layer):
 
     return tf.nn.l2_loss(x) / tf.to_float(tf.size(x)) + tf.nn.l2_loss(y) / tf.to_float(tf.size(y))
 
-# Done
-def gram(layer):
-    """ Get style with gram matrix.
-    layer with shape(batch, height, weight, channels) of activations.
-    """
-    shape = tf.shape(layer)
-    num_images = shape[0]
-    num_filters = shape[3]
-    size = tf.size(layer)
-    filters = tf.reshape(layer, tf.stack([num_images, -1, num_filters]))
-    grams = tf.matmul(tf.matrix_transpose(filters), filters) / tf.to_float(size / FLAGS.batch_size)
 
-    return grams
 
 # Done
 def get_style_features(style_paths, style_layers, net_type):
@@ -119,7 +107,7 @@ def get_style_features(style_paths, style_layers, net_type):
         net, _ = vgg.net(FLAGS.vgg_path, images, net_type)
         features = []
         for layer in style_layers:
-            features.append(gram(net[layer]))
+            features.append(model.gram(net[layer], FLAGS.batch_size))
 
 
         with tf.Session() as sess:
@@ -182,7 +170,8 @@ def perceptual_loss(net_type):
     # Get content loss
     content_loss = 0
     for layer in content_layers:
-        gen_features, images_features = tf.split(net[layer], 2, 0)
+        # 平均分为两组，每组都是batch长度的图片组
+        gen_features, images_features = tf.split(net[layer], num_or_size_splits=2, axis=0)
         size = tf.size(gen_features)
         content_loss += tf.nn.l2_loss(gen_features - images_features) / tf.to_float(size)
     content_loss /= len(content_layers)
@@ -190,11 +179,11 @@ def perceptual_loss(net_type):
     # Get Style loss
     style_loss = 0
     for style_gram, layer in zip(style_features_t, style_layers):
-        gen_features, _ = tf.split(net[layer], 2, 0)
+        gen_features, _ = tf.split(net[layer], num_or_size_splits=2, axis=0)
         size = tf.size(gen_features)
         # Calculate style loss for each style image
         for style_image in style_gram:
-            style_loss += tf.nn.l2_loss(gram(gen_features) - style_image) / tf.to_float(size)
+            style_loss += tf.nn.l2_loss(model.gram(gen_features, FLAGS.batch_size) - style_image) / tf.to_float(size)
     style_loss /= len(style_layers)
 
     # Total loss
@@ -477,12 +466,12 @@ def train(net_type):
                     print("Speed is %f s/loop" % (elapsed_time/FLAGS.record_interval))
                     print("===============================================")
 
-                if total_loss < best_loss:
-                    # im_summary = sess.run(im_merge)
-                    # train_writer.add_summary(im_summary, step)
-                    # Save checkpoint file
-                    best_loss = total_loss
-                    saver.save(sess, model_name, global_step=step)
+                    if total_loss < best_loss:
+                        # im_summary = sess.run(im_merge)
+                        # train_writer.add_summary(im_summary, step)
+                        # Save checkpoint file
+                        best_loss = total_loss
+                        saver.save(sess, model_name, global_step=step)
 
             except tf.errors.OutOfRangeError:
                 print('Finished training -- epoch limit reached!')

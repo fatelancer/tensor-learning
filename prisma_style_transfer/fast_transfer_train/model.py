@@ -154,7 +154,19 @@ def net(image, if_train=True, input_channels=3):
     return y
 
 
+# Done
+def gram(layer, factor):
+    """ Get style with gram matrix.
+    layer with shape(batch, height, weight, channels) of activations.
+    """
+    shape = tf.shape(layer)
+    num_images = shape[0]
+    num_filters = shape[3]
+    size = tf.size(layer)
+    filters = tf.reshape(layer, tf.stack([num_images, -1, num_filters]))
+    grams = tf.matmul(tf.matrix_transpose(filters), filters) / tf.to_float(size / factor) # FLAGS.batch_size)
 
+    return grams
 
 
 # 定义前向网络, 使用 Instance Normalization, 并且放在激活函数的后面.
