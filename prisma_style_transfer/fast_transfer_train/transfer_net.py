@@ -10,7 +10,7 @@ import tensorflow as tf
 import vgg
 import model
 import reader
-from .util import *
+import utils
 
 # special tag
 tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for model name")
@@ -166,10 +166,10 @@ def gen_single():
 
     # Output path
 
-    model_path = os.path.join('models', FLAGS.model_name + get_model_suffix())
+    model_path = os.path.join('models', FLAGS.model_name + utils.get_model_suffix())
     ### model_p = model_p if not model_p.endswith("/") else model_p[:-1]
     ### model_p = os.path.split(model_p)
-    output_path = os.path.join("output", FLAGS.model_name + get_model_suffix())
+    output_path = os.path.join("output", FLAGS.model_name + utils.get_model_suffix())
 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -345,10 +345,10 @@ def train(net_type):
     # train_op = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global_step=global_step)
 
     # Add summary
-    content_loss_summary = scalar_variable_summaries(content_loss, "content_loss")
-    style_loss_summary = scalar_variable_summaries(style_loss, "style_loss")
-    tv_loss_summary = scalar_variable_summaries(total_v_loss, "total_variation_loss")
-    loss_summary = scalar_variable_summaries(loss, "TOTAL_LOSS")
+    content_loss_summary = utils.scalar_variable_summaries(content_loss, "content_loss")
+    style_loss_summary = utils.scalar_variable_summaries(style_loss, "style_loss")
+    tv_loss_summary = utils.scalar_variable_summaries(total_v_loss, "total_variation_loss")
+    loss_summary = utils.scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
     merge_summary = tf.summary.merge(content_loss_summary + style_loss_summary + tv_loss_summary + loss_summary)
@@ -370,7 +370,7 @@ def train(net_type):
 
     # Make output path
 
-    model_suffix = get_model_suffix()
+    model_suffix = utils.get_model_suffix()
     model_path = os.path.join("models", FLAGS.model_name + model_suffix)
 
 
@@ -384,7 +384,7 @@ def train(net_type):
         os.makedirs(summary_path)
 
     # Record running configs in log file
-    log_train_configs(train_start, model_name, summary_path)
+    utils.log_train_configs(train_start, model_name, summary_path)
 
     with tf.Session() as sess:
         saver = tf.train.Saver(tf.all_variables())
@@ -407,8 +407,9 @@ def train(net_type):
         total_time = 0
         step = 1
         best_loss = float('inf')
-
-
+        print(sess.run(generated).shape)
+        print(sess.run(images).shape)
+        exit(1)
         while not coord.should_stop():
             try:
                 _, c_loss, s_loss, tv_loss, total_loss, step = sess.run([train_op, content_loss, style_loss, total_v_loss, loss, global_step])

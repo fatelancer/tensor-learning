@@ -1,7 +1,9 @@
 
 import tensorflow as tf
-from .transfer_net import FLAGS
+
 import time
+
+FLAGS = tf.app.flags.FLAGS
 
 '''
 Some util function
@@ -16,7 +18,7 @@ def scalar_variable_summaries(var, name):
     return [scalar_s, hist_s]
 
 
-def get_model_suffix(FLAGS):
+def get_model_suffix():
     model_suffix = "_" + FLAGS.special_tag
     model_suffix += "_cw" + str(FLAGS.content_weight) + "_"
     model_suffix += "sw" + str(FLAGS.style_weight) + "_"
