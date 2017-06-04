@@ -71,8 +71,8 @@ FLAGS = tf.app.flags.FLAGS
 def scalar_variable_summaries(var, name):
     """Attach summaries to a Scalar."""
     with tf.name_scope('summaries'):
-        scalar_s = tf.scalar_summary(name, var)
-        hist_s = tf.histogram_summary('hist-' + name, var)
+        scalar_s = tf.summary.scalar(name, var)
+        hist_s = tf.summary.histogram('hist-' + name, var)
     return [scalar_s, hist_s]
 
 
@@ -101,8 +101,6 @@ def total_variation_loss(layer):
 def gram(layer):
     """ Get style with gram matrix.
     layer with shape(batch, height, weight, channels) of activations.
-
-
     """
     shape = tf.shape(layer)
     num_images = shape[0]
@@ -147,7 +145,7 @@ def log_train_configs(train_start, model_name, summ_path):
         log_f.write("Summary path: " + summ_path + "\n")
         log_f.write("VGG path: " + FLAGS.vgg_path + "\n")
         log_f.write("Learning rate: " + str(FLAGS.lr) + "\n")
-        log_f.write("GPU: " + str(FLAGS.gpu) + "\n")
+        # log_f.write("GPU: " + str(FLAGS.gpu) + "\n")
         log_f.write("Epoch: " + str(FLAGS.epoch) + "\n")
         log_f.write("#-----------------------------------\n")
 
@@ -396,13 +394,13 @@ def train(net_type):
     # train_op = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global_step=global_step)
 
     # Add summary
-    ### content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
-    ### style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
-    ### tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
-    ### loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
+    content_loss_summary = scalar_variable_summaries(content_loss, "content_loss")
+    style_loss_summary = scalar_variable_summaries(style_loss, "style_loss")
+    tv_loss_summary = scalar_variable_summaries(total_v_loss, "total_variation_loss")
+    loss_summary = scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
-    ### merged = tf.merge_summary(content_loss_s + style_loss_s + tv_loss_s + loss_s)
+    merge_summary = tf.summary.merge(content_loss_summary + style_loss_summary + tv_loss_summary + loss_summary)
 
     ### if FLAGS.batch_size <= 4:
     ###    output_images = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
@@ -430,12 +428,12 @@ def train(net_type):
     model_name = os.path.join(model_path, FLAGS.model_name)
 
     # Summary path
-    summ_path = os.path.join(FLAGS.summary_path, FLAGS.model_name + model_suffix)
-    if not os.path.exists(summ_path):
-        os.makedirs(summ_path)
+    summary_path = os.path.join(FLAGS.summary_path, FLAGS.model_name + model_suffix)
+    if not os.path.exists(summary_path):
+        os.makedirs(summary_path)
 
     # Record running configs in log file
-    # log_train_configs(train_start, model_name, summ_path)
+    log_train_configs(train_start, model_name, summary_path)
 
     with tf.Session() as sess:
         saver = tf.train.Saver(tf.all_variables())
@@ -449,7 +447,7 @@ def train(net_type):
 
         sess.run(tf.initialize_local_variables())
         
-        # train_writer = tf.train.SummaryWriter(summ_path, sess.graph)
+        summary_writer = tf.summary.FileWriter(summary_path, sess.graph)
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
@@ -467,9 +465,9 @@ def train(net_type):
                 start_time = time.time()
 
                 if step % 100 == 0:
-                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
+                    summary = sess.run(merge_summary)
                     # Record summaries
-                    # train_writer.add_summary(summary, step)
+                    summary_writer.add_summary(summary, step)
 
                     print("===============Step %d ================" % step)
                     print("content_loss is %f" % c_loss)
