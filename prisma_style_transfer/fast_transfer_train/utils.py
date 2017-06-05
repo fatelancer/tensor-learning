@@ -19,7 +19,9 @@ def scalar_variable_summaries(var, name):
 
 
 def get_model_suffix():
-    model_suffix = "_" + FLAGS.special_tag
+    model_suffix = "_"
+    model_suffix += "arbi" if "arbi" in FLAGS.mode else "base"
+    model_suffix += "_" + FLAGS.special_tag
     model_suffix += "_cw" + str(FLAGS.content_weight) + "_"
     model_suffix += "sw" + str(FLAGS.style_weight) + "_"
     model_suffix += "tw" + str(FLAGS.tv_weight) + "_"

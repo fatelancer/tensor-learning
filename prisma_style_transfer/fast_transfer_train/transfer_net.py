@@ -11,6 +11,7 @@ import vgg
 import model
 import reader
 import utils
+import arbitrary_transfer_net as arbi
 
 # special tag
 tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for model name")
@@ -68,34 +69,6 @@ tf.app.flags.DEFINE_string("output", "style_output", "Name for output styled ima
 FLAGS = tf.app.flags.FLAGS
 
 
-
-def total_variation_loss(layer):
-    shape = tf.shape(layer)
-    height = shape[1]
-    width = shape[2]
-    y = tf.slice(layer, [0, 0, 0, 0], [-1, height - 1, -1, -1]) \
-        - tf.slice(layer, [0, 1, 0, 0], [-1, -1, -1, -1])
-    x = tf.slice(layer, [0, 0, 0, 0], [-1, -1, width - 1, -1])\
-        - tf.slice(layer, [0, 0, 1, 0], [-1, -1, -1, -1])
-
-    return tf.nn.l2_loss(x) / tf.to_float(tf.size(x)) + tf.nn.l2_loss(y) / tf.to_float(tf.size(y))
-
-
-
-# Done
-def get_style_features(style_paths, style_layers, net_type):
-    with tf.Graph().as_default() as g:
-        size = int(round(FLAGS.image_size * FLAGS.style_scale))
-        images = tf.stack([reader.get_image(path, size) for path in style_paths])
-        net, _ = vgg.net(FLAGS.vgg_path, images, net_type)
-        features = []
-        for layer in style_layers:
-            features.append(model.gram(net[layer], FLAGS.batch_size))
-
-        with tf.Session() as sess:
-            return sess.run(features)
-
-
 def perceptual_loss(net_type):
     """Compute perceptual loss of content and style
 
@@ -110,7 +83,7 @@ def perceptual_loss(net_type):
     style_layers = FLAGS.style_layers.split(',')
     content_layers = FLAGS.content_layers.split(',')
     # Get style feature, pre calculated and save it in memory
-    style_features_t = get_style_features(style_paths, style_layers, net_type)
+    style_features_t = model.get_style_features(style_paths, style_layers, net_type)
 
     # Read images from dataset
     images = reader.image(FLAGS.batch_size, FLAGS.image_size, FLAGS.train_images_path, epochs=FLAGS.epoch)
@@ -145,7 +118,7 @@ def perceptual_loss(net_type):
     style_loss /= len(style_layers)
 
     # Total loss
-    total_v_loss = total_variation_loss(generated)
+    total_v_loss = model.total_variation_loss(generated)
     loss = FLAGS.style_weight * style_loss + FLAGS.content_weight * content_loss + FLAGS.tv_weight * total_v_loss
 
     return generated, images, content_loss, style_loss, total_v_loss, loss
@@ -486,5 +459,19 @@ def main(argv=None):
             return
             
         train(net_type)
+
+    elif FLAGS.mode == "arbi_train":
+        arbi.train("vgg19")
+
+    elif FLAGS.mode == "arbi_gen":
+        if FLAGS.content:
+            arbi.gen_from_directory()
+        elif FLAGS.content_image:
+            arbi.gen_single()
+        else:
+            print("Please input content images path with arg: ")
+            print("\t\t--content content_images_path OR:")
+            print("\t\t--content_image content_images")
+
 
 main()

@@ -3,7 +3,11 @@ This file is used to define transfer network architecture.
 
 """
 import tensorflow as tf
+import reader
+import vgg
 
+
+FLAGS = tf.app.flags.FLAGS
 
 def conv2d(x, input_channels, output_channels, kernel, strides, mode='REFLECT', norm="batch", if_norm=True):
     """
@@ -78,29 +82,45 @@ def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=Tr
 
 # Input is a 4-D Tensor.
 def normalize(x, size, norm_type='batch'):
-    if norm_type not in ['batch', 'instance', 'adaptive']:
+    if norm_type not in ['batch', 'instance']:
         raise Exception("NO matching type of normalization!")
 
     norm_shape = (0,1,2) if norm_type == 'batch' else (1,2)
 
     mean, var = tf.nn.moments(x, norm_shape, keep_dims=True)
 
-    if norm_type == 'adaptive':
-        ## TODO, No argument, but constant from style image
-        beta = tf.Variable(tf.zeros([size]), name='beta')
-        scale = tf.Variable(tf.ones([size]), name='scale')
-    else:
-        beta = tf.Variable(tf.zeros([size]), name='beta')
-        scale = tf.Variable(tf.ones([size]), name='scale')
+
+    beta = tf.Variable(tf.zeros([size]), name='beta')
+    scale = tf.Variable(tf.ones([size]), name='scale')
     epsilon = 1e-3
     return tf.nn.batch_normalization(x, mean, var, beta, scale, epsilon, name='batch')
 
-# Duplicated.
-def instance_norm(x):
-    epsilon = 1e-9
-    mean, var = tf.nn.moments(x, [1, 2], keep_dims=True)
 
-    return tf.div(tf.subtract(x, mean), tf.sqrt(tf.add(var, epsilon)))
+
+def total_variation_loss(layer):
+    shape = tf.shape(layer)
+    height = shape[1]
+    width = shape[2]
+    y = tf.slice(layer, [0, 0, 0, 0], [-1, height - 1, -1, -1]) \
+        - tf.slice(layer, [0, 1, 0, 0], [-1, -1, -1, -1])
+    x = tf.slice(layer, [0, 0, 0, 0], [-1, -1, width - 1, -1])\
+        - tf.slice(layer, [0, 0, 1, 0], [-1, -1, -1, -1])
+
+    return tf.nn.l2_loss(x) / tf.to_float(tf.size(x)) + tf.nn.l2_loss(y) / tf.to_float(tf.size(y))
+
+# Done
+def get_style_features(style_paths, style_layers, net_type):
+    with tf.Graph().as_default() as g:
+        size = int(round(FLAGS.image_size * FLAGS.style_scale))
+        images = tf.stack([reader.get_image(path, size) for path in style_paths])
+        net, _ = vgg.net(FLAGS.vgg_path, images, net_type)
+        features = []
+        for layer in style_layers:
+            features.append(gram(net[layer], FLAGS.batch_size))
+
+        with tf.Session() as sess:
+            return sess.run(features)
+
 
 
 def residual(x, filters, kernel, strides):
@@ -214,6 +234,6 @@ def net2(image, if_train=True, input_channels=3):
 
     return y
 
-# 定义Adaptive网络结构
+# 定义Adaptive网络结构的前向网络部分
 def AdaIn_net(image, style_image, input_channels=3):
     pass

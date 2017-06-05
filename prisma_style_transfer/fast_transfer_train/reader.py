@@ -71,7 +71,7 @@ def get_batch_images(file_names, image_format, image_size, batch_size, max_lengt
     return preprocess(tf.stack(images), image_size, max_length, if_batch=True)
 
 # 使用官方推荐的 Data Queue 来完成数据流读取.
-def image(n, size, path, epochs=2, shuffle=True, crop=False):
+def image(n, size, path, epochs=2, shuffle=True, crop=True):
     """Get a batch of images from path for training
     Args:
         n: batch size
