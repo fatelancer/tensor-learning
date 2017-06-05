@@ -27,7 +27,7 @@ tf.app.flags.DEFINE_float("content_weight", 1., "Weight for content features los
 tf.app.flags.DEFINE_string("content_layers", "relu3_4", "Which VGG layer to extract content loss from")
 
 # 只保留了需要用的最小部分
-tf.app.flags.DEFINE_float("tv_weight", 1000, "Weight for total variation loss")
+tf.app.flags.DEFINE_float("tv_weight", 100, "Weight for total variation loss")
 tf.app.flags.DEFINE_string("vgg_path", "vgg19_36.mat", "Path to vgg model weights")
 
 # tf.app.flags.DEFINE_string("model_path", None, "Path to write trained models")
@@ -420,19 +420,21 @@ def train(net_type):
                     # Record summaries
                     summary_writer.add_summary(summary, step)
 
-                    print("===============Step %d ================" % step)
-                    print("content_loss is %f" % c_loss)
-                    print("style_loss is %f" % s_loss)
-                    print("tv_loss is %f" % tv_loss)
-                    print("Speed is %f s/loop" % (elapsed_time/FLAGS.record_interval))
-                    print("===============================================")
-
                     if total_loss < best_loss:
                         # im_summary = sess.run(im_merge)
                         # train_writer.add_summary(im_summary, step)
                         # Save checkpoint file
                         best_loss = total_loss
                         saver.save(sess, model_name, global_step=step)
+
+                    print("===============Step %d ================" % step)
+                    print("content_loss is %f" % c_loss)
+                    print("style_loss is %f" % s_loss)
+                    print("tv_loss is %f" % tv_loss)
+                    print("total_loss is %f" % total_loss)
+                    print("now, best_loss is %f" % best_loss)
+                    print("Speed is %f s/loop" % (elapsed_time / FLAGS.record_interval))
+                    print("===============================================")
 
             except tf.errors.OutOfRangeError:
                 print('Finished training -- epoch limit reached!')
