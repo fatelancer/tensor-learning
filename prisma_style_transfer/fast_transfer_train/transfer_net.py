@@ -10,6 +10,7 @@ import tensorflow as tf
 import vgg
 import model
 import reader
+import utils
 
 # special tag
 tf.app.flags.DEFINE_string("special_tag", "replicate_pad", "Special tag for model name")
@@ -56,7 +57,7 @@ tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
 # checkpoint相关参数
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
 
-
+tf.app.flags.DEFINE_integer("record_interval", 200, "the frequency to summary and refresh model recording")
 
 #####################################生成参数######################################################################
 tf.app.flags.DEFINE_string("model", "models/", "Path to read trained models")
@@ -68,23 +69,6 @@ tf.app.flags.DEFINE_string("output", "style_output", "Name for output styled ima
 FLAGS = tf.app.flags.FLAGS
 
 
-def scalar_variable_summaries(var, name):
-    """Attach summaries to a Scalar."""
-    with tf.name_scope('summaries'):
-        scalar_s = tf.scalar_summary(name, var)
-        hist_s = tf.histogram_summary('hist-' + name, var)
-    return [scalar_s, hist_s]
-
-
-def get_model_suffix():
-    model_suffix = "_" + FLAGS.special_tag
-    model_suffix += "_cw" + str(FLAGS.content_weight) + "_"
-    model_suffix += "sw" + str(FLAGS.style_weight) + "_"
-    model_suffix += "tw" + str(FLAGS.tv_weight) + "_"
-    model_suffix += "ss" + str(FLAGS.style_scale) + "_"
-    model_suffix += "b" + str(int(FLAGS.batch_size))
-    model_suffix += "_liuyi"
-    return model_suffix
 
 def total_variation_loss(layer):
     shape = tf.shape(layer)
@@ -97,21 +81,7 @@ def total_variation_loss(layer):
 
     return tf.nn.l2_loss(x) / tf.to_float(tf.size(x)) + tf.nn.l2_loss(y) / tf.to_float(tf.size(y))
 
-# Done
-def gram(layer):
-    """ Get style with gram matrix.
-    layer with shape(batch, height, weight, channels) of activations.
 
-
-    """
-    shape = tf.shape(layer)
-    num_images = shape[0]
-    num_filters = shape[3]
-    size = tf.size(layer)
-    filters = tf.reshape(layer, tf.stack([num_images, -1, num_filters]))
-    grams = tf.matmul(tf.matrix_transpose(filters), filters) / tf.to_float(size / FLAGS.batch_size)
-
-    return grams
 
 # Done
 def get_style_features(style_paths, style_layers, net_type):
@@ -121,35 +91,13 @@ def get_style_features(style_paths, style_layers, net_type):
         net, _ = vgg.net(FLAGS.vgg_path, images, net_type)
         features = []
         for layer in style_layers:
-            features.append(gram(net[layer]))
+            features.append(model.gram(net[layer], FLAGS.batch_size))
 
 
         with tf.Session() as sess:
             return sess.run(features)
 
-# Done
-def log_train_configs(train_start, model_name, summ_path):
-    with open(model_name + "_config.log", "a") as log_f:
-        log_f.write("#-----------------------------------\n")
-        log_f.write("Train start: " + time.ctime(train_start) + "\n")
-        log_f.write("#-----------------------------------\n")
 
-        log_f.write("Content weight: " + str(FLAGS.content_weight) + "\n")
-        log_f.write("Style weight: " + str(FLAGS.style_weight) + "\n")
-        log_f.write("Total variation weight: " + str(FLAGS.tv_weight) + "\n")
-        log_f.write("Content layers: " + FLAGS.content_layers + "\n")
-        log_f.write("Style layers: " + FLAGS.style_layers + "\n")
-        log_f.write("Style scale: " + str(FLAGS.style_scale) + "\n")
-        log_f.write("Style images: " + FLAGS.style_images + "\n")
-        log_f.write("Batch size: " + str(FLAGS.batch_size) + "\n")
-        log_f.write("Image size: " + str(FLAGS.image_size) + "\n")
-        log_f.write("Train images path: " + FLAGS.train_images_path + "\n")
-        log_f.write("Summary path: " + summ_path + "\n")
-        log_f.write("VGG path: " + FLAGS.vgg_path + "\n")
-        log_f.write("Learning rate: " + str(FLAGS.lr) + "\n")
-        log_f.write("GPU: " + str(FLAGS.gpu) + "\n")
-        log_f.write("Epoch: " + str(FLAGS.epoch) + "\n")
-        log_f.write("#-----------------------------------\n")
 
 
 def perceptual_loss(net_type):
@@ -184,7 +132,8 @@ def perceptual_loss(net_type):
     # Get content loss
     content_loss = 0
     for layer in content_layers:
-        gen_features, images_features = tf.split(net[layer], 2, 0)
+        # 平均分为两组，每组都是batch长度的图片组
+        gen_features, images_features = tf.split(net[layer], num_or_size_splits=2, axis=0)
         size = tf.size(gen_features)
         content_loss += tf.nn.l2_loss(gen_features - images_features) / tf.to_float(size)
     content_loss /= len(content_layers)
@@ -192,11 +141,11 @@ def perceptual_loss(net_type):
     # Get Style loss
     style_loss = 0
     for style_gram, layer in zip(style_features_t, style_layers):
-        gen_features, _ = tf.split(net[layer], 2, 0)
+        gen_features, _ = tf.split(net[layer], num_or_size_splits=2, axis=0)
         size = tf.size(gen_features)
         # Calculate style loss for each style image
         for style_image in style_gram:
-            style_loss += tf.nn.l2_loss(gram(gen_features) - style_image) / tf.to_float(size)
+            style_loss += tf.nn.l2_loss(model.gram(gen_features, FLAGS.batch_size) - style_image) / tf.to_float(size)
     style_loss /= len(style_layers)
 
     # Total loss
@@ -217,10 +166,10 @@ def gen_single():
 
     # Output path
 
-    model_path = os.path.join('models', FLAGS.model_name + get_model_suffix())
+    model_path = os.path.join('models', FLAGS.model_name + utils.get_model_suffix())
     ### model_p = model_p if not model_p.endswith("/") else model_p[:-1]
     ### model_p = os.path.split(model_p)
-    output_path = os.path.join("output", FLAGS.model_name + get_model_suffix())
+    output_path = os.path.join("output", FLAGS.model_name + utils.get_model_suffix())
 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
@@ -376,10 +325,12 @@ def train(net_type):
     # Record training start time
     train_start = time.time()
 
+
+    global_step = tf.Variable(1, name="global_step", trainable=False)
+
     # Perceptual loss
     generated, images, content_loss, style_loss, total_v_loss, loss = perceptual_loss(net_type)
 
-    global_step = tf.Variable(1, name="global_step", trainable=False)
 
     train_op = tf.train.AdamOptimizer(FLAGS.lr).minimize(loss, global_step=global_step)
 
@@ -394,13 +345,13 @@ def train(net_type):
     # train_op = tf.train.MomentumOptimizer(learning_rate, 0.9).minimize(loss, global_step=global_step)
 
     # Add summary
-    ### content_loss_s = scalar_variable_summaries(content_loss, "content_loss")
-    ### style_loss_s = scalar_variable_summaries(style_loss, "style_loss")
-    ### tv_loss_s = scalar_variable_summaries(total_v_loss, "total_variation_loss")
-    ### loss_s = scalar_variable_summaries(loss, "TOTAL_LOSS")
+    content_loss_summary = utils.scalar_variable_summaries(content_loss, "content_loss")
+    style_loss_summary = utils.scalar_variable_summaries(style_loss, "style_loss")
+    tv_loss_summary = utils.scalar_variable_summaries(total_v_loss, "total_variation_loss")
+    loss_summary = utils.scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
-    ### merged = tf.merge_summary(content_loss_s + style_loss_s + tv_loss_s + loss_s)
+    merge_summary = tf.summary.merge(content_loss_summary + style_loss_summary + tv_loss_summary + loss_summary)
 
     ### if FLAGS.batch_size <= 4:
     ###    output_images = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
@@ -419,7 +370,7 @@ def train(net_type):
 
     # Make output path
 
-    model_suffix = get_model_suffix()
+    model_suffix = utils.get_model_suffix()
     model_path = os.path.join("models", FLAGS.model_name + model_suffix)
 
 
@@ -428,12 +379,12 @@ def train(net_type):
     model_name = os.path.join(model_path, FLAGS.model_name)
 
     # Summary path
-    summ_path = os.path.join(FLAGS.summary_path, FLAGS.model_name + model_suffix)
-    if not os.path.exists(summ_path):
-        os.makedirs(summ_path)
+    summary_path = os.path.join(FLAGS.summary_path, FLAGS.model_name + model_suffix)
+    if not os.path.exists(summary_path):
+        os.makedirs(summary_path)
 
     # Record running configs in log file
-    # log_train_configs(train_start, model_name, summ_path)
+    utils.log_train_configs(train_start, model_name, summary_path)
 
     with tf.Session() as sess:
         saver = tf.train.Saver(tf.all_variables())
@@ -447,39 +398,45 @@ def train(net_type):
 
         sess.run(tf.initialize_local_variables())
         
-        # train_writer = tf.train.SummaryWriter(summ_path, sess.graph)
+        summary_writer = tf.summary.FileWriter(summary_path, sess.graph)
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord)
         start_time = time.time()
+        elapsed_time = 0
         total_time = 0
         step = 1
+        best_loss = float('inf')
+
+        # print(sess.run(generated).shape)
+        # print(sess.run(images).shape)
+        # exit(1)
 
         while not coord.should_stop():
             try:
-                if step % 20 == 0:
-                    ###summary, _, loss_t, step = sess.run([merged, train_op, loss, global_step])
-                    _, loss_t, step = sess.run([train_op, loss, global_step])
+                _, c_loss, s_loss, tv_loss, total_loss, step = sess.run([train_op, content_loss, style_loss, total_v_loss, loss, global_step])
+
+                if step % FLAGS.record_interval == 0:
                     elapsed_time = time.time() - start_time
                     total_time += elapsed_time
                     start_time = time.time()
-
+                    summary = sess.run(merge_summary)
                     # Record summaries
-                    # train_writer.add_summary(summary, step)
+                    summary_writer.add_summary(summary, step)
 
-                    print("# step = %d, loss = %f, elapsed time = %f" % (step-1, loss_t, elapsed_time * 20))
+                    print("===============Step %d ================" % step)
+                    print("content_loss is %f" % c_loss)
+                    print("style_loss is %f" % s_loss)
+                    print("tv_loss is %f" % tv_loss)
+                    print("Speed is %f s/loop" % (elapsed_time/FLAGS.record_interval))
+                    print("===============================================")
 
-                else:
-                    _, loss_t, step = sess.run([train_op, loss, global_step])
-                    elapsed_time = time.time() - start_time
-                    total_time += elapsed_time
-                    start_time = time.time()
-
-                if step % 10000 == 0:
-                    # im_summary = sess.run(im_merge)
-                    # train_writer.add_summary(im_summary, step)
-                    # Save checkpoint file
-                    saver.save(sess, model_name, global_step=step)
+                    if total_loss < best_loss:
+                        # im_summary = sess.run(im_merge)
+                        # train_writer.add_summary(im_summary, step)
+                        # Save checkpoint file
+                        best_loss = total_loss
+                        saver.save(sess, model_name, global_step=step)
 
             except tf.errors.OutOfRangeError:
                 print('Finished training -- epoch limit reached!')
@@ -490,6 +447,7 @@ def train(net_type):
                 break
 
             except:
+                # some unknown error like disk reading error, just ignore it.
                 continue
 
 
