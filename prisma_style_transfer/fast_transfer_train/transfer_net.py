@@ -27,7 +27,7 @@ tf.app.flags.DEFINE_float("content_weight", 1., "Weight for content features los
 tf.app.flags.DEFINE_string("content_layers", "relu3_4", "Which VGG layer to extract content loss from")
 
 # 只保留了需要用的最小部分
-tf.app.flags.DEFINE_float("tv_weight", 1, "Weight for total variation loss")
+tf.app.flags.DEFINE_float("tv_weight", 1000, "Weight for total variation loss")
 tf.app.flags.DEFINE_string("vgg_path", "vgg19_36.mat", "Path to vgg model weights")
 
 # tf.app.flags.DEFINE_string("model_path", None, "Path to write trained models")
@@ -35,7 +35,7 @@ tf.app.flags.DEFINE_string("model_name", None, "Name for output trained model")
 
 tf.app.flags.DEFINE_string("train_images_path", "F:\\test_resize", "Path to training images")
 
-tf.app.flags.DEFINE_float("style_weight", 100., "Weight for style features loss")
+tf.app.flags.DEFINE_float("style_weight", 1000., "Weight for style features loss")
 # 这里倒是遵循了原来的选择，大概不那么好选择了
 # 权值是平均分的
 tf.app.flags.DEFINE_string("style_layers", "relu1_1,relu2_1,relu3_1,relu4_1,relu5_1",
@@ -58,7 +58,6 @@ tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
 
 tf.app.flags.DEFINE_integer("record_interval", 200, "the frequency to summary and refresh model recording")
-
 #####################################生成参数######################################################################
 tf.app.flags.DEFINE_string("model", "models/", "Path to read trained models")
 tf.app.flags.DEFINE_string("content", None, "Path to content image(s)")
@@ -74,9 +73,9 @@ def total_variation_loss(layer):
     shape = tf.shape(layer)
     height = shape[1]
     width = shape[2]
-    y = tf.slice(layer, [0, 0, 0, 0], tf.stack([-1, height - 1, -1, -1])) \
+    y = tf.slice(layer, [0, 0, 0, 0], [-1, height - 1, -1, -1]) \
         - tf.slice(layer, [0, 1, 0, 0], [-1, -1, -1, -1])
-    x = tf.slice(layer, [0, 0, 0, 0], tf.stack([-1, -1, width - 1, -1]))\
+    x = tf.slice(layer, [0, 0, 0, 0], [-1, -1, width - 1, -1])\
         - tf.slice(layer, [0, 0, 1, 0], [-1, -1, -1, -1])
 
     return tf.nn.l2_loss(x) / tf.to_float(tf.size(x)) + tf.nn.l2_loss(y) / tf.to_float(tf.size(y))
@@ -95,8 +94,6 @@ def get_style_features(style_paths, style_layers, net_type):
 
         with tf.Session() as sess:
             return sess.run(features)
-
-
 
 
 def perceptual_loss(net_type):
@@ -324,12 +321,10 @@ def train(net_type):
     # Record training start time
     train_start = time.time()
 
-
     global_step = tf.Variable(1, name="global_step", trainable=False)
 
     # Perceptual loss
     generated, images, content_loss, style_loss, total_v_loss, loss = perceptual_loss(net_type)
-
 
     train_op = tf.train.AdamOptimizer(FLAGS.lr).minimize(loss, global_step=global_step)
 
@@ -350,7 +345,7 @@ def train(net_type):
     loss_summary = utils.scalar_variable_summaries(loss, "TOTAL_LOSS")
     # learning_rate_s = scalar_variable_summaries(learning_rate, "lr")
 
-    merge_summary = tf.summary.merge(content_loss_summary + style_loss_summary + tv_loss_summary + loss_summary)
+
 
     ### if FLAGS.batch_size <= 4:
     ###    output_images = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
@@ -360,11 +355,13 @@ def train(net_type):
     ###                                                   tf.slice(images, [0, 0, 0, 0], [4, -1, -1, -1])])
     ###                                     + reader.mean_pixel, tf.uint8)
 
-    # output_format = tf.saturate_cast(tf.concat(0, [generated, images]) + reader.mean_pixel, tf.uint8)
+    output_format = tf.saturate_cast(tf.concat([generated, images], 0) + reader.mean_pixel, tf.uint8)
     # output_images = tf.saturate_cast(generated + reader.mean_pixel, tf.uint8)
 
     # Add output image summary
-    ### im_summary = tf.image_summary("output-", output_images, max_images=8)
+    image_summary = tf.summary.image("output-image", output_format, max_outputs=8)
+
+    merge_summary = tf.summary.merge(content_loss_summary + style_loss_summary + tv_loss_summary + loss_summary + [image_summary])
     ### im_merge = tf.merge_summary([im_summary])
 
     # Make output path
