@@ -93,7 +93,6 @@ def get_style_features(style_paths, style_layers, net_type):
         for layer in style_layers:
             features.append(model.gram(net[layer], FLAGS.batch_size))
 
-
         with tf.Session() as sess:
             return sess.run(features)
 

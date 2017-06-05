@@ -23,7 +23,8 @@ def get_model_suffix():
     model_suffix += "_cw" + str(FLAGS.content_weight) + "_"
     model_suffix += "sw" + str(FLAGS.style_weight) + "_"
     model_suffix += "tw" + str(FLAGS.tv_weight) + "_"
-    model_suffix += "ss" + str(FLAGS.style_scale) + "_"
+    model_suffix += "ep" + str(FLAGS.epoch) + "_"
+    model_suffix += "size" + str(FLAGS.image_size) + "_"
     model_suffix += "b" + str(int(FLAGS.batch_size))
     model_suffix += "_liuyi"
     return model_suffix
