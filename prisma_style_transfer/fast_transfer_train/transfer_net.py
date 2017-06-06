@@ -58,6 +58,7 @@ tf.app.flags.DEFINE_float("lr", 1e-3, "learning rate for training")
 # tf.app.flags.DEFINE_string("checkpoint_path", "checkpoint/%s.model" % get_time(), "use time to identify checkpoint")
 
 tf.app.flags.DEFINE_integer("record_interval", 200, "the frequency to summary and refresh model recording")
+tf.app.flags.DEFINE_integer("save_model_interval", 2000, "the frequency to summary and refresh model recording")
 #####################################生成参数######################################################################
 tf.app.flags.DEFINE_string("model", "models/", "Path to read trained models")
 tf.app.flags.DEFINE_string("content", None, "Path to content image(s)")
@@ -421,12 +422,16 @@ def train(net_type):
                     # Record summaries
                     summary_writer.add_summary(summary, step)
 
+                if step % FLAGS.save_model_interval == 0:
+                    saver.save(sess, model_name, global_step=step)
+
                     if total_loss < best_loss:
                         # im_summary = sess.run(im_merge)
                         # train_writer.add_summary(im_summary, step)
                         # Save checkpoint file
+                        saver.save(sess, model_name+"_best", global_step=step)
                         best_loss = total_loss
-                        saver.save(sess, model_name, global_step=step)
+
 
                     print("===============Step %d ================" % step)
                     print("content_loss is %f" % c_loss)
