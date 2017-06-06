@@ -225,7 +225,7 @@ def gen_from_directory():
         os.makedirs(output_path)
     
     with tf.Session() as sess:
-        file_ = tf.train.latest_checkpoint(FLAGS.model_path)
+        file_ = tf.train.latest_checkpoint(model_path)
         if not file_:
             print('Could not find trained model in {}'.format(FLAGS.model))
             return
