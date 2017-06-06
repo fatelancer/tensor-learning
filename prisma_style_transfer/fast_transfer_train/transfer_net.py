@@ -216,15 +216,16 @@ def gen_from_directory():
     output_format = tf.saturate_cast(generated_images + reader.mean_pixel, tf.uint8)
 
     # Ouput path
-    model_p = FLAGS.model
-    model_p = model_p if not model_p.endswith("/") else model_p[:-1]
-    model_p = os.path.split(model_p)
-    output_path = os.path.join("output", model_p[len(model_p)-1])
+    model_path = os.path.join('models', FLAGS.model_name + utils.get_model_suffix())
+    ### model_p = model_p if not model_p.endswith("/") else model_p[:-1]
+    ### model_p = os.path.split(model_p)
+    output_path = os.path.join("output", FLAGS.model_name + utils.get_model_suffix())
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     
     with tf.Session() as sess:
-        file_ = tf.train.latest_checkpoint(FLAGS.model)
+        file_ = tf.train.latest_checkpoint(FLAGS.model_path)
         if not file_:
             print('Could not find trained model in {}'.format(FLAGS.model))
             return
