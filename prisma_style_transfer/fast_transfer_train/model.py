@@ -60,7 +60,7 @@ def conv2d_transpose(x, input_filters, output_filters, kernel, strides, padding=
         normalized = normalize(convolved, output_filters, norm_type='batch')
         return normalized
 
-# 这个用给 super-resolution的,用不到
+# 这个可以消除噪音，比上面的好。
 def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=True):
     with tf.variable_scope('conv_transpose') as scope:
 
@@ -135,11 +135,11 @@ def net(image, if_train=True, input_channels=3):
     with tf.variable_scope('res5'):
         res5 = residual(res4, 128, 3, 1)
     with tf.variable_scope('deconv1'):
-        ### deconv1 = tf.nn.relu(resize_conv2d(res5, 128, 64, 3, 2, training=if_train))
-        deconv1 = tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2))
+        deconv1 = tf.nn.relu(resize_conv2d(res5, 128, 64, 3, 2, training=if_train))
+        ### deconv1 = tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2))
     with tf.variable_scope('deconv2'):
-        ### deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
-        deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2))
+        deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
+        ### deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2))
     with tf.variable_scope('conv4'):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
         deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="instance"))
