@@ -44,12 +44,15 @@ tf.app.flags.DEFINE_string("style_layers", "relu1_1,relu2_1,relu3_1,relu4_1,relu
 
 # 这里的多风格融合设计有点多余
 tf.app.flags.DEFINE_string("style_images", "style/starry_night.png", "Styles to train")
+tf.app.flags.DEFINE_string("style_path", "style", "a group of style, used for arbitrary style transfer")
 tf.app.flags.DEFINE_float("style_scale", 1, "Scale styles. Higher extracts smaller features")
 
 # 因为不太使用 batch Normalization 所以没什么所谓，不过大的batch应该可以加速并行计算
 tf.app.flags.DEFINE_integer("batch_size", 1, "Number of concurrent images to train on")
 tf.app.flags.DEFINE_string("summary_path", "tensorboard", "Path to store Tensorboard summaries")
 tf.app.flags.DEFINE_integer("epoch", 5, "Epochs for training")
+tf.app.flags.DEFINE_integer("style_epoch", 10, "Epochs for style images, used for arbitrary mode")
+tf.app.flags.DEFINE_integer("style_loop", 2000, "How many images trained for a style image, used for arbitrary mode")
 
 # 在Batch Normalization的情况下可以调大一点, 但是对于Instance Normalization呢?
 # 在 Loop 11000 我 调整为了 1e-1 之前是 1e-3

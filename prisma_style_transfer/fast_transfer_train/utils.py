@@ -31,6 +31,20 @@ def get_model_suffix():
     model_suffix += "_liuyi"
     return model_suffix
 
+def get_ar_model_suffix():
+    model_suffix = "_"
+    model_suffix += "arbi" if "arbi" in FLAGS.mode else "base"
+    model_suffix += "_" + FLAGS.special_tag + "_"
+    model_suffix += "cw" + str(FLAGS.content_weight) + "_"
+    model_suffix += "sw" + str(FLAGS.style_weight) + "_"
+    model_suffix += "tw" + str(FLAGS.tv_weight) + "_"
+    model_suffix += "ep" + str(FLAGS.style_epoch) + "_"
+    model_suffix += "lp" + str(FLAGS.style_loop) + "_"
+    model_suffix += "size" + str(FLAGS.image_size) + "_"
+    model_suffix += "_liuyi"
+    return model_suffix
+
+
 # Done
 def log_train_configs(train_start, model_name, summ_path):
     with open(model_name + "_config.log", "a") as log_f:
