@@ -68,8 +68,8 @@ def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=Tr
         height = x.get_shape()[1].value if training else tf.shape(x)[1]
         width = x.get_shape()[2].value if training else tf.shape(x)[2]
 
-        new_height = height * strides * 2
-        new_width = width * strides * 2
+        new_height = tf.multiply(height, strides * 2)
+        new_width = tf.multiply(width,strides * 2)
 
         x_resized = tf.image.resize_images(x, (tf.to_int32(new_height), tf.to_int32(new_width)), tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
