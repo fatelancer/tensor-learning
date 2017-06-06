@@ -370,11 +370,16 @@ def train(net_type):
 
     model_suffix = utils.get_model_suffix()
     model_path = os.path.join("models", FLAGS.model_name + model_suffix)
+    best_model_path = os.path.join("models", FLAGS.model_name + model_suffix + "_best")
 
 
     if not os.path.exists(model_path):
         os.makedirs(model_path)
     model_name = os.path.join(model_path, FLAGS.model_name)
+
+    if not os.path.exists(best_model_path):
+        os.makedirs(best_model_path)
+    best_model_name = os.path.join(best_model_path, FLAGS.model_name)
 
     # Summary path
     summary_path = os.path.join(FLAGS.summary_path, FLAGS.model_name + model_suffix)
@@ -386,6 +391,8 @@ def train(net_type):
 
     with tf.Session() as sess:
         saver = tf.train.Saver(tf.all_variables())
+        best_saver = tf.train.Saver(tf.all_variables())
+
         file_ = tf.train.latest_checkpoint(model_path)
         if file_:
             print('Restoring model from {}...'.format(file_))
@@ -429,7 +436,7 @@ def train(net_type):
                         # im_summary = sess.run(im_merge)
                         # train_writer.add_summary(im_summary, step)
                         # Save checkpoint file
-                        saver.save(sess, model_name+"_best", global_step=step)
+                        best_saver.save(sess, best_model_name, global_step=step)
                         best_loss = total_loss
 
 
