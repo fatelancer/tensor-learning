@@ -370,7 +370,7 @@ def train(net_type):
 
     model_suffix = utils.get_model_suffix()
     model_path = os.path.join("models", FLAGS.model_name + model_suffix)
-    best_model_path = os.path.join("models", FLAGS.model_name + model_suffix + "_best")
+    best_model_path = os.path.join(model_path, "best_model")
 
 
     if not os.path.exists(model_path):
