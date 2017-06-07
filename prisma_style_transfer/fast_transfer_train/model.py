@@ -5,7 +5,7 @@ This file is used to define transfer network architecture.
 import tensorflow as tf
 
 
-def conv2d(x, input_channels, output_channels, kernel, strides, mode='REFLECT', norm="batch", if_norm=True):
+def conv2d(x, input_channels, output_channels, kernel, strides, mode='REFLECT', norm="unused", if_norm=True):
     """
     Define a convolution layer with input x.
     Args:
@@ -136,13 +136,13 @@ def net(image, if_train=True, input_channels=3):
         res5 = residual(res4, 128, 3, 1)
     with tf.variable_scope('deconv1'):
         ### deconv1 = tf.nn.relu(resize_conv2d(res5, 128, 64, 3, 2, training=if_train))
-        deconv1 = tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2))
+        deconv1 = tf.nn.relu(conv2d_transpose(res5, 128, 64, 3, 2, if_norm=False))
     with tf.variable_scope('deconv2'):
         ### deconv2 = tf.nn.relu(resize_conv2d(deconv1, 64, 32, 3, 2, training=if_train))
-        deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2))
+        deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2, if_norm=False))
     with tf.variable_scope('conv4'):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
-        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="instance"))
+        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="unused"))
 
     y = deconv3 * 127.5
 
