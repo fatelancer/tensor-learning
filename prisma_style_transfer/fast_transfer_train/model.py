@@ -144,7 +144,7 @@ def net(image, if_train=True, input_channels=3):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
         deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="instance"))
 
-    y = deconv3 * 127.5
+    y = deconv3
 
     # Remove border effect reducing padding.
     height = tf.shape(y)[1]

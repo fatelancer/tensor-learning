@@ -119,7 +119,7 @@ def perceptual_loss(net_type):
     # Transfer images
     # 为什么要换成0-1编码?
     # 这里和里面的处理对应起来, 虽然这么写很丑， 也容易忘
-    generated = model.net(images / 255)
+    generated = model.net(images)
     # generated = model.net(tf.truncated_normal(images.get_shape(), stddev=0.3))
 
 
