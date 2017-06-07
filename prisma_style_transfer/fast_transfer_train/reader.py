@@ -31,7 +31,7 @@ def preprocess(images, image_size, max_length, if_batch=False):
 
 
 # max_length: Whether size dictates longest or shortest side. Default longest
-
+# return a 3-D Tensor.
 def get_image(path, image_size, max_length=True, channels=3):
     if_png = path.lower().endswith('png')
     img_bytes = tf.read_file(path)

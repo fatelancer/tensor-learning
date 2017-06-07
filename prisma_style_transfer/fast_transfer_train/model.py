@@ -65,12 +65,12 @@ def conv2d_transpose(x, input_filters, output_filters, kernel, strides, padding=
         return normalized
 
 # 这个用给 super-resolution的,用不到
-def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=True):
+def resize_conv2d(x, input_filters, output_filters, kernel, strides):
     with tf.variable_scope('conv_transpose') as scope:
 
         # 这两种有什么区别么？ 在没开始训练之前
-        height = x.get_shape()[1].value if training else tf.shape(x)[1]
-        width = x.get_shape()[2].value if training else tf.shape(x)[2]
+        height = tf.shape(x)[1]
+        width = tf.shape(x)[2]
 
         new_height = height * strides * 2
         new_width = width * strides * 2
@@ -95,6 +95,13 @@ def normalize(x, size, norm_type='batch'):
     epsilon = 1e-3
     return tf.nn.batch_normalization(x, mean, var, beta, scale, epsilon, name='batch')
 
+def ada_norm(image_features, style_features):
+    # 第一个batch维度肯定是1
+    i_mean, i_var = tf.nn.moments(image_features, (0,1,2), keep_dims=True)
+
+    s_mean, s_var = tf.nn.moments(style_features, (0,1,2), keep_dims=False)
+    epsilon = 1e-3
+    return tf.nn.batch_normalization(image_features, i_mean, i_var, s_mean, s_var, epsilon, name="adain_norm")
 
 
 def total_variation_loss(layer):
@@ -234,6 +241,53 @@ def net2(image, if_train=True, input_channels=3):
 
     return y
 
+
+
+
 # 定义Adaptive网络结构的前向网络部分
+# Image and Style_image is a 4-D Tensor.
 def AdaIn_net(image, style_image, input_channels=3):
-    pass
+    net, _ = vgg.net(FLAGS.vgg_path, tf.concat([image, style_image], 0), "vgg19")
+
+    image_features, style_features = tf.split(net['relu4_1'], num_or_size_splits=2, axis=0)
+    with tf.variable_scope("AdaIn"):
+        ada_out = ada_norm(image_features, style_features)
+
+    with tf.variable_scope("d_conv4_1"):
+        d_conv4_1 = tf.nn.relu(conv2d(image_features, 512, 256, 3, 1, if_norm=False))
+
+    with tf.variable_scope("pooling_3"):
+        d_pooling_3 = resize_conv2d(d_conv4_1, 256, 256, 3, 2)
+
+    with tf.variable_scope("d_conv3_4"):
+        d_conv3_4 = tf.nn.relu(conv2d(d_pooling_3, 256, 256, 3, 1, if_norm=False))
+
+    with tf.variable_scope("d_conv3_3"):
+        d_conv3_3 = tf.nn.relu(conv2d(d_conv3_4, 256, 256, 3, 1, if_norm=False))
+
+    with tf.variable_scope("d_conv3_2"):
+        d_conv3_2 = tf.nn.relu(conv2d(d_conv3_3, 256, 256, 3, 1, if_norm=False))
+
+    with tf.variable_scope("d_conv3_1"):
+        d_conv3_1 = tf.nn.relu(conv2d(d_conv3_2, 256, 128, 3, 1, if_norm=False))
+
+    with tf.variable_scope("pooling_2"):
+        d_pooling_2 = resize_conv2d(d_conv3_1, 128, 128, 3, 2)
+
+    with tf.variable_scope("d_conv2_2"):
+        d_conv2_2 = tf.nn.relu(conv2d(d_pooling_2, 128, 128, 3, 1, if_norm=False))
+
+    with tf.variable_scope("d_conv2_1"):
+        d_conv2_1 = tf.nn.relu(conv2d(d_conv2_2, 128, 64, 3, 1, if_norm=False))
+
+    with tf.variable_scope("pooling_1"):
+        d_pooling_1 = resize_conv2d(d_conv2_1, 64, 64, 3, 2)
+
+    with tf.variable_scope("d_conv1_2"):
+        d_conv1_2 = tf.nn.relu(conv2d(d_pooling_1, 64, 64, 3, 1, if_norm=False))
+
+    with tf.variable_scope("d_conv1_1"):
+        d_conv1_1 = tf.nn.relu(conv2d(d_conv1_2, 64, 3, 3, 1, if_norm=False))
+
+
+    return d_conv1_1, image_features

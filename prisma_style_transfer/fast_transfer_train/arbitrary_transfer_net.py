@@ -45,7 +45,7 @@ def AdaIn_loss(style_path):
 
     # Transfer images
     # Ada_mid is used to calculate content loss.
-    generated, Ada_features = model.AdaIn_net(image, style_image)
+    generated, Ada_features = model.AdaIn_net(image, tf.stack([style_image]))
 
     # Process generated and original images with vgg
     net, _ = vgg.net(FLAGS.vgg_path, tf.concat([generated, image], 0), "vgg19")
