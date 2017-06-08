@@ -429,6 +429,15 @@ def train(net_type):
                     # Record summaries
                     summary_writer.add_summary(summary, step)
 
+                    print("===============Step %d ================" % step)
+                    print("content_loss is %f" % c_loss)
+                    print("style_loss is %f" % s_loss)
+                    print("tv_loss is %f" % tv_loss)
+                    print("total_loss is %f" % total_loss)
+                    print("now, best_loss is %f" % best_loss)
+                    print("Speed is %f s/loop" % (elapsed_time / FLAGS.record_interval))
+                    print("===============================================")
+
                 if step % FLAGS.save_model_interval == 0:
                     saver.save(sess, model_name, global_step=step)
 
@@ -440,14 +449,7 @@ def train(net_type):
                         best_loss = total_loss
 
 
-                    print("===============Step %d ================" % step)
-                    print("content_loss is %f" % c_loss)
-                    print("style_loss is %f" % s_loss)
-                    print("tv_loss is %f" % tv_loss)
-                    print("total_loss is %f" % total_loss)
-                    print("now, best_loss is %f" % best_loss)
-                    print("Speed is %f s/loop" % (elapsed_time / FLAGS.record_interval))
-                    print("===============================================")
+
 
             except tf.errors.OutOfRangeError:
                 print('Finished training -- epoch limit reached!')
