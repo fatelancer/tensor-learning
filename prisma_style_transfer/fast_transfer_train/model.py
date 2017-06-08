@@ -65,8 +65,8 @@ def resize_conv2d(x, input_filters, output_filters, kernel, strides, training=Tr
     with tf.variable_scope('conv_transpose') as scope:
 
         # 这两种有什么区别么？ 在没开始训练之前
-        height = x.get_shape()[1].value if training else tf.shape(x)[1]
-        width = x.get_shape()[2].value if training else tf.shape(x)[2]
+        height = tf.shape(x)[1]
+        width = tf.shape(x)[2]
 
         new_height = height * strides * 2
         new_width = width * strides * 2
