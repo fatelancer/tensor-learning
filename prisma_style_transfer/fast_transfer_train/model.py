@@ -142,7 +142,7 @@ def net(image, if_train=True, input_channels=3):
         ### deconv2 = tf.nn.relu(conv2d_transpose(deconv1, 64, 32, 3, 2, if_norm=False))
     with tf.variable_scope('conv4'):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
-        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="unused"))
+        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, norm="batch"))
 
     y = deconv3 * 127.5
 
