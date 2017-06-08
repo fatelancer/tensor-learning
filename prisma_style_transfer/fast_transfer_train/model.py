@@ -200,7 +200,7 @@ def net2(image, if_train=True, input_channels=3):
     with tf.variable_scope('conv4'):
         # Use a scaled tanh to ensure the output image pixels in [0, 255]
         # [-1, 1]
-        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, if_norm=False))
+        deconv3 = tf.nn.tanh(conv2d(deconv2, 32, 3, 9, 1, if_norm=False, norm="batch"))
 
     # y need add reader.norm
     # 这里 * 127.5 的原因是前面已经执行了 Normalization把 [0,1] 转为了 0 为中心
